@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Navbar } from '../components/Navbar';
 import { DashboardPreview } from '../features/dashboard/DashboardPreview';
 import { Layers, ShieldCheck, Activity, BookOpen, Key, Sparkles, Terminal, Check } from 'lucide-react';
@@ -20,19 +21,17 @@ export default function HomePage() {
             APIHub é uma plataforma completa para catalogar endpoints, exportar especificações OpenAPI automáticas, executar testes protegidos contra SSRF e monitorar métricas em tempo real.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <a
-              href="#tester"
+            <Link
+              href="/dashboard"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-md shadow-blue-500/20"
             >
-              Experimentar API Tester
-            </a>
+              Abrir Dashboard
+            </Link>
             <a
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
+              href="#tester"
               className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-6 py-2.5 rounded-lg text-sm font-semibold transition"
             >
-              Ver no GitHub
+              Experimentar API Tester
             </a>
           </div>
         </div>

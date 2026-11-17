@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ThemeToggle } from './ThemeToggle';
 import { Layers, Terminal, BookOpen, Key, Activity } from 'lucide-react';
 
@@ -37,9 +38,12 @@ export function Navbar() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+          <Link
+            href="/login"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+          >
             Entrar
-          </button>
+          </Link>
         </div>
       </div>
     </header>
