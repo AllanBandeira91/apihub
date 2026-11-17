@@ -13,7 +13,6 @@ export default function RecuperarSenhaPage() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [previewCode, setPreviewCode] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +26,7 @@ export default function RecuperarSenhaPage() {
 
     try {
       const res = await api.auth.sendVerification(email, 'PASSWORD_RESET');
-      setPreviewCode(res.previewCode || null);
-      setInfoMessage(`Código de recuperação enviado para ${res.email}.`);
+      setInfoMessage(`Código de recuperação enviado para ${res.email}. Verifique sua caixa de entrada (ou spam).`);
       setStep('reset');
     } catch (err: any) {
       setError(err?.message || 'Erro ao solicitar código de recuperação.');
@@ -97,16 +95,9 @@ export default function RecuperarSenhaPage() {
         )}
 
         {infoMessage && step === 'reset' && (
-          <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/80 text-emerald-300 text-xs space-y-1.5 animate-in fade-in">
-            <div className="flex items-center gap-2 font-semibold">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-              <span>{infoMessage}</span>
-            </div>
-            {previewCode && (
-              <div className="p-2 rounded bg-black/50 border border-emerald-900 font-mono text-center text-sm tracking-[0.25em] text-emerald-400 font-bold">
-                Código: {previewCode}
-              </div>
-            )}
+          <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2 font-semibold animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+            <span>{infoMessage}</span>
           </div>
         )}
 

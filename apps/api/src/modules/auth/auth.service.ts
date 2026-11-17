@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { AppError } from '../../plugins/errorHandler';
 import { LoginInput, RegisterInput } from '@apihub/shared';
 import { validateRealEmail } from './email-validator';
+import { sendVerificationEmail } from './mailer';
 
 export class AuthService {
   async sendVerificationCode(email: string, type: 'REGISTER' | 'PASSWORD_RESET' = 'REGISTER') {
@@ -38,12 +39,11 @@ export class AuthService {
       },
     });
 
-    console.log(`[AUTH VERIFICATION] Code for ${validEmail} (${type}): ${code}`);
+    await sendVerificationEmail(validEmail, code, type);
 
     return {
       email: validEmail,
       type,
-      previewCode: code,
       expiresInMinutes: 10,
     };
   }

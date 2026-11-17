@@ -15,7 +15,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [previewCode, setPreviewCode] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,11 +28,10 @@ export default function RegisterPage() {
 
     try {
       const res = await api.auth.sendVerification(email, 'REGISTER');
-      setPreviewCode(res.previewCode || null);
-      setInfoMessage(`Código de 6 dígitos enviado para ${res.email}. Verifique sua caixa de entrada.`);
+      setInfoMessage(`Código de 6 dígitos enviado para ${res.email}. Verifique sua caixa de entrada (ou spam).`);
       setStep('verify');
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível validar o e-mail informado.');
+      setError(err?.message || 'Não foi possível validar ou enviar o e-mail informado.');
     } finally {
       setIsLoading(false);
     }
@@ -86,16 +84,9 @@ export default function RegisterPage() {
         )}
 
         {infoMessage && (
-          <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/80 text-emerald-300 text-xs space-y-1.5 animate-in fade-in">
-            <div className="flex items-center gap-2 font-semibold">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
-              <span>{infoMessage}</span>
-            </div>
-            {previewCode && (
-              <div className="p-2 rounded bg-black/50 border border-emerald-900 font-mono text-center text-sm tracking-[0.25em] text-emerald-400 font-bold">
-                Código: {previewCode}
-              </div>
-            )}
+          <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2 font-semibold animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+            <span>{infoMessage}</span>
           </div>
         )}
 

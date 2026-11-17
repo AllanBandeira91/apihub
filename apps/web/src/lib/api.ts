@@ -68,7 +68,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   auth: {
     async sendVerification(email: string, type: 'REGISTER' | 'PASSWORD_RESET' = 'REGISTER') {
-      return request<{ email: string; type: string; previewCode?: string; expiresInMinutes: number }>('/auth/send-verification', {
+      return request<{ email: string; type: string; expiresInMinutes: number }>('/auth/send-verification', {
         method: 'POST',
         body: JSON.stringify({ email, type }),
       });

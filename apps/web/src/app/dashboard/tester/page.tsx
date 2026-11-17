@@ -261,40 +261,6 @@ export default function TesterPage() {
               </button>
             </div>
 
-            {/* Quick Presets */}
-            <div className="flex flex-wrap gap-2 text-xs text-zinc-400 pt-1">
-              <span className="text-zinc-500">Exemplos reais:</span>
-              <button
-                onClick={() => {
-                  setMethod('GET');
-                  setUrl('https://httpbin.org/get');
-                }}
-                className="text-blue-400 hover:underline"
-              >
-                httpbin.org (GET)
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => {
-                  setMethod('GET');
-                  setUrl('https://jsonplaceholder.typicode.com/posts/1');
-                }}
-                className="text-blue-400 hover:underline"
-              >
-                JSONPlaceholder (Post #1)
-              </button>
-              <span>•</span>
-              <button
-                onClick={() => {
-                  setMethod('GET');
-                  setUrl('http://127.0.0.1:8080/admin');
-                }}
-                className="text-red-400 hover:underline"
-              >
-                Bloqueio SSRF (127.0.0.1)
-              </button>
-            </div>
-
             {/* Request Tabs */}
             <div className="border-b border-[var(--border)] flex gap-4 text-xs font-semibold pt-2">
               <button

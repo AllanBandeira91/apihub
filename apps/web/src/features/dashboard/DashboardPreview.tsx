@@ -130,40 +130,6 @@ export function DashboardPreview() {
         </button>
       </div>
 
-      {/* Quick Test Presets */}
-      <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
-        <span>Testes rápidos:</span>
-        <button
-          onClick={() => {
-            setSelectedMethod('GET');
-            setTestUrl('https://httpbin.org/get');
-          }}
-          className="underline hover:text-white"
-        >
-          Público (httpbin.org)
-        </button>
-        <span>•</span>
-        <button
-          onClick={() => {
-            setSelectedMethod('GET');
-            setTestUrl('http://127.0.0.1:8080/admin');
-          }}
-          className="underline hover:text-rose-400"
-        >
-          Simular Bloqueio SSRF (127.0.0.1)
-        </button>
-        <span>•</span>
-        <button
-          onClick={() => {
-            setSelectedMethod('GET');
-            setTestUrl('http://169.254.169.254/latest/meta-data');
-          }}
-          className="underline hover:text-rose-400"
-        >
-          Simular Metadados Nuvem (169.254)
-        </button>
-      </div>
-
       {/* Response Panel */}
       {testError && (
         <div className="p-4 rounded-lg bg-red-950/40 border border-red-800 text-red-300 text-sm flex items-start gap-3">
