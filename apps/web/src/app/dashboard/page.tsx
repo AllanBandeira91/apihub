@@ -6,89 +6,68 @@ import {
   FolderGit2,
   Terminal,
   BookOpen,
-  Key,
   TrendingUp,
   Activity,
   CheckCircle2,
   Clock,
   ArrowUpRight,
   Plus,
-  Inbox
+  Inbox,
+  AlertCircle
 } from 'lucide-react';
-import { EndpointItem } from './apis/page';
+import { api, BootstrapData } from '../../lib/api';
 
 export default function DashboardHomePage() {
-  const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [avgLatency, setAvgLatency] = useState(0);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [data, setData] = useState<BootstrapData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Load Real Endpoints
-    const savedEp = localStorage.getItem('apihub-endpoints');
-    let epList: EndpointItem[] = [];
-    if (savedEp) {
-      try {
-        const parsed = JSON.parse(savedEp);
-        if (Array.isArray(parsed)) {
-          epList = parsed;
-          setEndpoints(parsed);
-        }
-      } catch {}
-    }
-
-    // 2. Load Real Test History
-    const savedHist = localStorage.getItem('apihub-history');
-    if (savedHist) {
-      try {
-        const parsedHist = JSON.parse(savedHist);
-        if (Array.isArray(parsedHist)) {
-          setHistory(parsedHist);
-          if (parsedHist.length > 0) {
-            const totalMs = parsedHist.reduce((acc: number, item: any) => acc + (item.durationMs || 0), 0);
-            setAvgLatency(Math.round(totalMs / parsedHist.length));
-          }
-        }
-      } catch {}
-    }
-
-    setIsLoaded(true);
+    api.workspaces
+      .bootstrap()
+      .then(res => {
+        setData(res);
+      })
+      .catch(err => {
+        setError(err?.message || 'Não foi possível carregar os dados do painel.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
-
-  const uniqueApis = new Set(endpoints.map(e => e.apiName)).size;
 
   const stats = [
     {
       label: 'APIs Registradas',
-      value: String(uniqueApis),
-      change: uniqueApis > 0 ? `${uniqueApis} agrupamento(s)` : 'Nenhuma API criada',
+      value: String(data?.stats.apisCount ?? 0),
+      change: (data?.stats.apisCount ?? 0) > 0 ? 'Sincronizadas no Supabase' : 'Nenhuma API criada',
       icon: FolderGit2,
       color: 'text-blue-400',
-      bg: 'bg-blue-500/10'
+      bg: 'bg-blue-500/10',
     },
     {
       label: 'Endpoints Mapeados',
-      value: String(endpoints.length),
-      change: endpoints.length > 0 ? 'Rotas documentadas' : 'Aguardando endpoints',
+      value: String(data?.stats.endpointsCount ?? 0),
+      change: (data?.stats.endpointsCount ?? 0) > 0 ? 'Rotas na nuvem' : 'Aguardando endpoints',
       icon: BookOpen,
       color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10'
+      bg: 'bg-emerald-500/10',
     },
     {
       label: 'Testes Executados',
-      value: String(history.length),
-      change: history.length > 0 ? 'Requisições registradas' : 'Sem histórico',
+      value: String(data?.stats.totalRequests ?? 0),
+      change: (data?.stats.totalRequests ?? 0) > 0 ? 'Logs gravados no banco' : 'Sem histórico',
       icon: Activity,
       color: 'text-purple-400',
-      bg: 'bg-purple-500/10'
+      bg: 'bg-purple-500/10',
     },
     {
       label: 'Latência Média',
-      value: avgLatency > 0 ? `${avgLatency} ms` : '0 ms',
-      change: history.length > 0 ? 'Tempo de resposta médio' : 'Sem medições',
+      value: `${data?.stats.avgLatencyMs ?? 0} ms`,
+      change: (data?.stats.totalRequests ?? 0) > 0 ? 'Medição real do servidor' : 'Sem medições',
       icon: Clock,
       color: 'text-amber-400',
-      bg: 'bg-amber-500/10'
+      bg: 'bg-amber-500/10',
     },
   ];
 
@@ -99,7 +78,7 @@ export default function DashboardHomePage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Painel de Controle</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Visão consolidada das suas APIs, endpoints mapeados e métricas reais de teste.
+            Visão consolidada em tempo real sincronizada com o banco de dados na nuvem.
           </p>
         </div>
 
@@ -119,6 +98,13 @@ export default function DashboardHomePage() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s, idx) => {
@@ -132,7 +118,9 @@ export default function DashboardHomePage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <p className="text-2xl font-bold tracking-tight">{s.value}</p>
+                <p className="text-2xl font-bold tracking-tight">
+                  {isLoading ? '—' : s.value}
+                </p>
                 <p className="text-[11px] text-zinc-500 flex items-center gap-1">
                   <TrendingUp className="w-3 h-3 text-emerald-400" /> {s.change}
                 </p>
@@ -155,7 +143,7 @@ export default function DashboardHomePage() {
             </Link>
           </div>
 
-          {isLoaded && history.length === 0 ? (
+          {!isLoading && (!data?.recentLogs || data.recentLogs.length === 0) ? (
             <div className="py-10 text-center space-y-3 text-zinc-500">
               <Inbox className="w-8 h-8 mx-auto text-zinc-600" />
               <p className="text-xs">Nenhum teste executado ainda.</p>
@@ -168,11 +156,11 @@ export default function DashboardHomePage() {
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
-              {history.slice(0, 5).map((item, i) => (
-                <div key={i} className="py-3 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3 overflow-hidden">
+              {(data?.recentLogs || []).slice(0, 6).map(item => (
+                <div key={item.id} className="py-3 flex items-center justify-between text-xs gap-4">
+                  <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                     <span
-                      className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
+                      className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${
                         item.method === 'GET'
                           ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                           : item.method === 'POST'
@@ -189,14 +177,14 @@ export default function DashboardHomePage() {
                     <div>
                       <span
                         className={`font-bold ${
-                          item.status >= 200 && item.status < 300
+                          item.statusCode >= 200 && item.statusCode < 300
                             ? 'text-emerald-400'
-                            : item.status >= 400
+                            : item.statusCode >= 400 || item.statusCode === 0
                             ? 'text-rose-400'
                             : 'text-amber-400'
                         }`}
                       >
-                        {item.status}
+                        {item.statusCode || 'ERR'}
                       </span>
                       <p className="text-[10px] text-zinc-500">{item.durationMs}ms</p>
                     </div>
@@ -213,7 +201,7 @@ export default function DashboardHomePage() {
             <BookOpen className="w-4 h-4 text-emerald-400" /> Exportação OpenAPI 3.0
           </h2>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            A especificação OpenAPI 3.0 é gerada dinamicamente a partir dos endpoints cadastrados.
+            A especificação OpenAPI 3.0 e os snippets de código são gerados automaticamente a partir dos endpoints salvos no Supabase.
           </p>
 
           <div className="p-3.5 rounded-lg bg-black/40 border border-[var(--border)] space-y-2">
@@ -224,9 +212,15 @@ export default function DashboardHomePage() {
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-400">Rotas Exportáveis:</span>
+              <span className="text-zinc-400">Rotas na Nuvem:</span>
               <span className="font-mono font-bold text-white">
-                {endpoints.length} rota(s)
+                {data?.stats.endpointsCount ?? 0} rota(s)
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-zinc-400">Chaves Ativas:</span>
+              <span className="font-mono font-bold text-white">
+                {data?.stats.keysCount ?? 0} chave(s)
               </span>
             </div>
           </div>

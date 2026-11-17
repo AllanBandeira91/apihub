@@ -3,85 +3,145 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  FolderGit2,
   Plus,
   Search,
-  Filter,
   Terminal,
   Trash2,
-  Check,
   X,
-  ExternalLink,
-  Code,
-  Layers,
-  Inbox
+  Inbox,
+  Upload,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
+import { api, EndpointItem } from '../../../lib/api';
 
-export interface EndpointItem {
-  id: string;
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  path: string;
-  summary: string;
-  tags: string[];
-  apiName: string;
-  parametersCount: number;
-}
+export type { EndpointItem };
 
 export default function ApisPage() {
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('apihub-endpoints');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setEndpoints(parsed);
-      } catch {}
-    }
-    setIsLoaded(true);
-  }, []);
-
-  const saveEndpoints = (items: EndpointItem[]) => {
-    setEndpoints(items);
-    localStorage.setItem('apihub-endpoints', JSON.stringify(items));
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('ALL');
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // New endpoint form state
+  // Create Endpoint Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMethod, setNewMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
   const [newPath, setNewPath] = useState('');
   const [newSummary, setNewSummary] = useState('');
   const [newTag, setNewTag] = useState('');
   const [newApiName, setNewApiName] = useState('API Principal');
+  const [newBaseUrl, setNewBaseUrl] = useState('');
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPath) return;
+  // Import OpenAPI / Swagger JSON Modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
 
-    const formattedPath = newPath.startsWith('/') ? newPath : `/${newPath}`;
-    const newEp: EndpointItem = {
-      id: Date.now().toString(),
-      method: newMethod,
-      path: formattedPath,
-      summary: newSummary || `Endpoint ${formattedPath}`,
-      tags: newTag ? [newTag] : ['Geral'],
-      apiName: newApiName || 'API Principal',
-      parametersCount: 0,
-    };
-
-    saveEndpoints([newEp, ...endpoints]);
-    setIsModalOpen(false);
-    setNewPath('');
-    setNewSummary('');
-    setNewTag('');
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const boot = await api.workspaces.bootstrap();
+      setProjectId(boot.project.id);
+      const list = await api.endpoints.list(boot.project.id);
+      setEndpoints(list);
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao carregar endpoints do Supabase.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    saveEndpoints(endpoints.filter(e => e.id !== id));
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPath || !projectId) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const created = await api.endpoints.quickCreate(projectId, {
+        method: newMethod,
+        path: newPath.trim(),
+        summary: newSummary.trim() || `Endpoint ${newPath.trim()}`,
+        tags: newTag.trim() ? [newTag.trim()] : ['Geral'],
+        apiName: newApiName.trim() || 'API Principal',
+        baseUrl: newBaseUrl.trim() || undefined,
+      });
+
+      setEndpoints(prev => [created, ...prev]);
+      setIsModalOpen(false);
+      setNewPath('');
+      setNewSummary('');
+      setNewTag('');
+      setNewBaseUrl('');
+      setSuccessMsg('Endpoint salvo no Supabase com sucesso!');
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao salvar endpoint.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setError(null);
+    try {
+      await api.endpoints.delete(id);
+      setEndpoints(prev => prev.filter(e => e.id !== id));
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao excluir endpoint.');
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setImportJsonText(reader.result);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportOpenApi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectId || !importJsonText.trim()) return;
+
+    setIsImporting(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      let parsedSpec;
+      try {
+        parsedSpec = JSON.parse(importJsonText);
+      } catch {
+        throw new Error('O conteúdo informado não é um JSON válido. Verifique a sintaxe do arquivo OpenAPI/Swagger.');
+      }
+
+      const res = await api.endpoints.importOpenApi(projectId, parsedSpec);
+      const updatedList = await api.endpoints.list(projectId);
+      setEndpoints(updatedList);
+      setIsImportModalOpen(false);
+      setImportJsonText('');
+      setSuccessMsg(`${res.importedCount} endpoint(s) importado(s) com sucesso para "${res.api.name}"!`);
+    } catch (err: any) {
+      setError(err?.message || 'Falha ao importar especificação OpenAPI.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const filteredEndpoints = endpoints.filter(ep => {
@@ -93,6 +153,12 @@ export default function ApisPage() {
     return matchesSearch && matchesMethod;
   });
 
+  const buildTesterUrl = (ep: EndpointItem) => {
+    const base = ep.baseUrl && !ep.baseUrl.includes('exemplo.com') ? ep.baseUrl.replace(/\/$/, '') : '';
+    const fullTarget = base ? `${base}${ep.path}` : ep.path;
+    return `/dashboard/tester?url=${encodeURIComponent(fullTarget)}&method=${ep.method}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -100,17 +166,51 @@ export default function ApisPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Catálogo de APIs & Endpoints</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Cadastre rotas, métodos HTTP, parâmetros e documentações exportáveis em OpenAPI 3.0.
+            Cadastre rotas manualmente ou importe arquivos OpenAPI/Swagger JSON direto para o Supabase.
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
-        >
-          <Plus className="w-4 h-4" /> Novo Endpoint
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setError(null);
+              setIsImportModalOpen(true);
+            }}
+            className="border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger / OpenAPI
+          </button>
+
+          <button
+            onClick={() => {
+              setError(null);
+              setIsModalOpen(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
+          >
+            <Plus className="w-4 h-4" /> Novo Endpoint
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-800 text-emerald-300 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+            <span>{successMsg}</span>
+          </div>
+          <button onClick={() => setSuccessMsg(null)} className="text-zinc-400 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -142,8 +242,13 @@ export default function ApisPage() {
         </div>
       </div>
 
-      {/* Endpoints List or Empty State */}
-      {isLoaded && filteredEndpoints.length === 0 ? (
+      {/* Loading / Empty / List */}
+      {isLoading ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-zinc-400">Carregando endpoints da nuvem...</p>
+        </div>
+      ) : filteredEndpoints.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center space-y-4 shadow-xl">
           <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
             <Inbox className="w-7 h-7" />
@@ -152,17 +257,25 @@ export default function ApisPage() {
             <h3 className="font-bold text-lg text-white">Nenhum endpoint cadastrado</h3>
             <p className="text-xs text-zinc-400">
               {endpoints.length === 0
-                ? 'Seu catálogo de APIs está limpo e pronto para receber suas rotas. Cadastre seu primeiro endpoint para começar.'
-                : 'Nenhum endpoint corresponde aos filtros de busca selecionados.'}
+                ? 'Seu catálogo está limpo e sincronizado com o Supabase. Cadastre manualmente ou importe um Swagger/OpenAPI JSON.'
+                : 'Nenhum endpoint corresponde aos filtros selecionados.'}
             </p>
           </div>
           {endpoints.length === 0 && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
-            >
-              <Plus className="w-4 h-4" /> Cadastrar Primeiro Endpoint
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
+              >
+                <Plus className="w-4 h-4" /> Cadastrar Primeiro Endpoint
+              </button>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-200 px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 transition"
+              >
+                <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger JSON
+              </button>
+            </div>
           )}
         </div>
       ) : (
@@ -172,9 +285,9 @@ export default function ApisPage() {
               key={ep.id}
               className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-zinc-700 transition shadow-sm"
             >
-              <div className="flex items-start sm:items-center gap-3">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <span
-                  className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs ${
+                  className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs flex-shrink-0 ${
                     ep.method === 'GET'
                       ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                       : ep.method === 'POST'
@@ -187,9 +300,9 @@ export default function ApisPage() {
                   {ep.method}
                 </span>
 
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-sm text-zinc-100">{ep.path}</span>
+                    <span className="font-mono font-bold text-sm text-zinc-100 break-all">{ep.path}</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
                       {ep.apiName}
                     </span>
@@ -206,9 +319,9 @@ export default function ApisPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center">
+              <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
                 <Link
-                  href={`/dashboard/tester?url=${encodeURIComponent(ep.path)}&method=${ep.method}`}
+                  href={buildTesterUrl(ep)}
                   className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition"
                 >
                   <Terminal className="w-3.5 h-3.5 text-blue-400" /> Testar
@@ -284,6 +397,17 @@ export default function ApisPage() {
                 />
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">URL Base da API (Opcional)</label>
+                <input
+                  type="url"
+                  value={newBaseUrl}
+                  onChange={e => setNewBaseUrl(e.target.value)}
+                  placeholder="https://api.seusistema.com"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-zinc-300">Nome da API</label>
@@ -318,9 +442,72 @@ export default function ApisPage() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
                 >
-                  Salvar Endpoint
+                  {isSubmitting ? 'Salvando...' : 'Salvar Endpoint'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import OpenAPI / Swagger JSON Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Upload className="w-5 h-5 text-emerald-400" /> Importar OpenAPI 3.0 / Swagger 2.0 (JSON)
+              </h3>
+              <button
+                onClick={() => setIsImportModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleImportOpenApi} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-zinc-300 block">
+                  Selecionar arquivo `.json` (ou colar abaixo)
+                </label>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleFileUpload}
+                  className="block w-full text-xs text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Conteúdo JSON OpenAPI / Swagger</label>
+                <textarea
+                  rows={10}
+                  required
+                  value={importJsonText}
+                  onChange={e => setImportJsonText(e.target.value)}
+                  placeholder='{"openapi": "3.0.3", "info": {"title": "Minha API", "version": "1.0.0"}, "paths": { ... }}'
+                  className="w-full bg-black/60 border border-[var(--border)] rounded-lg p-3 text-xs font-mono focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isImporting || !importJsonText.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-emerald-600/20"
+                >
+                  {isImporting ? 'Importando...' : 'Importar Endpoints para o Supabase'}
                 </button>
               </div>
             </form>

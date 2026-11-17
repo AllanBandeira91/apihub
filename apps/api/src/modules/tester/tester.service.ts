@@ -186,6 +186,13 @@ export class TesterService {
     });
   }
 
+  async clearLogs(projectId: string) {
+    await prisma.requestLog.deleteMany({
+      where: { projectId },
+    });
+    return { message: 'Histórico de testes limpo com sucesso.' };
+  }
+
   async getMetrics(projectId: string) {
     const totalRequests = await prisma.requestLog.count({
       where: { projectId },

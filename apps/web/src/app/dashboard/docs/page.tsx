@@ -2,33 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { BookOpen, Download, Code, Check, Copy, ExternalLink, ChevronRight, ChevronDown, Inbox, Plus } from 'lucide-react';
-import { EndpointItem } from '../apis/page';
+import { Download, Code, Check, Copy, ChevronRight, ChevronDown, Inbox, Plus, AlertCircle } from 'lucide-react';
+import { api, EndpointItem } from '../../../lib/api';
+import { CodeSnippetBox } from '../../../components/CodeSnippetBox';
 
 export default function DocsPage() {
   const [viewMode, setViewMode] = useState<'ui' | 'json'>('ui');
   const [copied, setCopied] = useState(false);
   const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('apihub-endpoints');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setEndpoints(parsed);
-          if (parsed.length > 0) {
-            setExpandedEndpoint(`${parsed[0].method}-${parsed[0].path}`);
-          }
+    api.workspaces
+      .bootstrap()
+      .then(boot => api.endpoints.list(boot.project.id))
+      .then(list => {
+        setEndpoints(list);
+        if (list.length > 0) {
+          setExpandedEndpoint(list[0].id);
         }
-      } catch {}
-    }
-    setIsLoaded(true);
+      })
+      .catch(err => setError(err?.message || 'Erro ao carregar endpoints do Supabase.'))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  // Dynamically generate real OpenAPI 3.0.3 Spec
+  // Dynamically generate real OpenAPI 3.0.3 Spec from Supabase endpoints
   const pathsObject: Record<string, any> = {};
   endpoints.forEach(ep => {
     const methodLower = ep.method.toLowerCase();
@@ -38,7 +38,14 @@ export default function DocsPage() {
     pathsObject[ep.path][methodLower] = {
       summary: ep.summary,
       tags: ep.tags,
-      description: `Operação ${ep.method} para o recurso ${ep.path} gerenciado pelo APIHub.`,
+      description: ep.description || `Operação ${ep.method} para o recurso ${ep.path} (${ep.apiName}).`,
+      parameters: (ep.parameters || []).map(p => ({
+        name: p.name,
+        in: p.in,
+        required: p.required,
+        description: p.description || undefined,
+        schema: { type: 'string', example: p.example || undefined },
+      })),
       responses: {
         '200': {
           description: 'Operação executada com sucesso',
@@ -60,9 +67,9 @@ export default function DocsPage() {
   const openApiSpec = {
     openapi: '3.0.3',
     info: {
-      title: 'APIHub - Documentação Unificada',
+      title: 'APIHub — Especificação OpenAPI',
       version: '1.0.0',
-      description: 'Especificação OpenAPI 3.0 gerada dinamicamente pelo catálogo de APIs do APIHub.',
+      description: 'Documentação gerada dinamicamente a partir das rotas sincronizadas no Supabase.',
     },
     paths: pathsObject,
   };
@@ -85,6 +92,11 @@ export default function DocsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const resolveFullUrl = (ep: EndpointItem) => {
+    const base = ep.baseUrl ? ep.baseUrl.replace(/\/$/, '') : 'https://api.seusistema.com';
+    return `${base}${ep.path}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -92,7 +104,7 @@ export default function DocsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Documentação OpenAPI 3.0</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Visualizador interativo e exportação em JSON compatível com Swagger, Postman e Insomnia.
+            Visualizador interativo com gerador automático de `cURL`, `fetch` e `Python`, sincronizado com o Supabase.
           </p>
         </div>
 
@@ -137,7 +149,19 @@ export default function DocsPage() {
         </div>
       </div>
 
-      {isLoaded && endpoints.length === 0 ? (
+      {error && (
+        <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-zinc-400">Gerando documentação a partir do banco...</p>
+        </div>
+      ) : endpoints.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center space-y-4 shadow-xl">
           <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
             <Inbox className="w-7 h-7" />
@@ -145,14 +169,14 @@ export default function DocsPage() {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="font-bold text-lg text-white">Nenhum endpoint documentado</h3>
             <p className="text-xs text-zinc-400">
-              A documentação e a especificação OpenAPI 3.0 são geradas automaticamente a partir dos endpoints cadastrados.
+              Cadastre manualmente ou importe um Swagger/OpenAPI JSON na aba APIs & Endpoints para gerar a documentação automaticamente.
             </p>
           </div>
           <Link
             href="/dashboard/apis"
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
           >
-            <Plus className="w-4 h-4" /> Cadastrar Endpoints no Catálogo
+            <Plus className="w-4 h-4" /> Cadastrar ou Importar Endpoints
           </Link>
         </div>
       ) : viewMode === 'json' ? (
@@ -162,8 +186,8 @@ export default function DocsPage() {
       ) : (
         <div className="space-y-4">
           {endpoints.map(ep => {
-            const key = `${ep.method}-${ep.path}`;
-            const isExpanded = expandedEndpoint === key;
+            const isExpanded = expandedEndpoint === ep.id;
+            const fullUrl = resolveFullUrl(ep);
 
             return (
               <div
@@ -171,12 +195,12 @@ export default function DocsPage() {
                 className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-sm"
               >
                 <button
-                  onClick={() => setExpandedEndpoint(isExpanded ? null : key)}
+                  onClick={() => setExpandedEndpoint(isExpanded ? null : ep.id)}
                   className="w-full p-4 flex items-center justify-between text-left hover:bg-black/20 transition"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`font-mono font-bold px-2.5 py-1 rounded text-xs ${
+                      className={`font-mono font-bold px-2.5 py-1 rounded text-xs flex-shrink-0 ${
                         ep.method === 'GET'
                           ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                           : ep.method === 'POST'
@@ -188,13 +212,13 @@ export default function DocsPage() {
                     >
                       {ep.method}
                     </span>
-                    <div>
-                      <span className="font-mono font-bold text-sm text-zinc-100">{ep.path}</span>
+                    <div className="min-w-0">
+                      <span className="font-mono font-bold text-sm text-zinc-100 break-all">{ep.path}</span>
                       <p className="text-xs text-zinc-400 mt-0.5">{ep.summary}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
                       {ep.apiName}
                     </span>
@@ -208,19 +232,50 @@ export default function DocsPage() {
 
                 {isExpanded && (
                   <div className="p-4 border-t border-[var(--border)] bg-black/30 space-y-4 text-xs">
-                    <div className="space-y-1">
-                      <h4 className="font-semibold text-zinc-300">Descrição Técnica:</h4>
-                      <p className="text-zinc-400">
-                        {ep.summary}. Este endpoint está registrado sob o serviço <strong>{ep.apiName}</strong> e protegido pelas regras de segurança de tráfego do APIHub.
-                      </p>
-                    </div>
+                    {ep.description && (
+                      <div className="space-y-1">
+                        <h4 className="font-semibold text-zinc-300">Descrição:</h4>
+                        <p className="text-zinc-400">{ep.description}</p>
+                      </div>
+                    )}
 
-                    <div className="flex items-center gap-2 pt-2">
+                    {ep.parameters && ep.parameters.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-zinc-300">Parâmetros:</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {ep.parameters.map(p => (
+                            <div key={p.id} className="p-2.5 rounded-lg bg-black/40 border border-[var(--border)]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-blue-300">{p.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase">
+                                  {p.in}
+                                </span>
+                                {p.required && (
+                                  <span className="text-[10px] text-rose-400 font-semibold">obrigatório</span>
+                                )}
+                              </div>
+                              {p.description && <p className="text-[11px] text-zinc-400 mt-1">{p.description}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <CodeSnippetBox
+                      title="Exemplo de Chamada"
+                      request={{
+                        method: ep.method,
+                        url: fullUrl,
+                        headers: { Accept: 'application/json' },
+                      }}
+                    />
+
+                    <div className="flex items-center gap-2 pt-1">
                       <Link
-                        href={`/dashboard/tester?url=${encodeURIComponent(ep.path)}&method=${ep.method}`}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 shadow-sm"
+                        href={`/dashboard/tester?url=${encodeURIComponent(fullUrl)}&method=${ep.method}`}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 shadow-sm"
                       >
-                        Abrir no Tester
+                        Testar no API Tester
                       </Link>
                     </div>
                   </div>

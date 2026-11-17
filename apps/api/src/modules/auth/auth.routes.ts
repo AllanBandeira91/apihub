@@ -121,4 +121,41 @@ export async function authRoutes(app: FastifyInstance) {
       data: { user },
     });
   });
+
+  app.patch('/profile', { preHandler: [authenticate] }, async (request, reply) => {
+    const input = z.object({ name: z.string().min(2).max(100) }).parse(request.body);
+    const user = await authService.updateProfile(request.user!.id, input.name);
+    return reply.send({
+      success: true,
+      data: { user },
+    });
+  });
+
+  app.post('/change-password', { preHandler: [authenticate] }, async (request, reply) => {
+    const input = z
+      .object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(8, 'A nova senha deve ter pelo menos 8 caracteres'),
+      })
+      .parse(request.body);
+    const result = await authService.changePassword(
+      request.user!.id,
+      input.currentPassword,
+      input.newPassword
+    );
+    return reply.send({
+      success: true,
+      data: result,
+    });
+  });
+
+  app.delete('/account', { preHandler: [authenticate] }, async (request, reply) => {
+    const input = z.object({ password: z.string().min(1) }).parse(request.body);
+    const result = await authService.deleteAccount(request.user!.id, input.password);
+    reply.clearCookie('token', { path: '/' });
+    return reply.send({
+      success: true,
+      data: result,
+    });
+  });
 }

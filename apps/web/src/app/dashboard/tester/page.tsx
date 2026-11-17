@@ -12,61 +12,70 @@ import {
   Trash2,
   History,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  Server
 } from 'lucide-react';
+import { api, RequestLogItem } from '../../../lib/api';
+import { CodeSnippetBox } from '../../../components/CodeSnippetBox';
 
 interface HeaderPair {
   key: string;
   value: string;
 }
 
-interface HistoryItem {
-  id: string;
-  method: string;
-  url: string;
-  status: number;
-  durationMs: number;
-  timestamp: string;
-}
-
 export default function TesterPage() {
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [method, setMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
   const [url, setUrl] = useState('');
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body'>('params');
+  const [activeTab, setActiveTab] = useState<'params' | 'body' | 'code'>('params');
   const [headers, setHeaders] = useState<HeaderPair[]>([
     { key: 'Accept', value: 'application/json' },
   ]);
   const [requestBody, setRequestBody] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<{
+    status: number;
+    durationMs: number;
+    headers: Record<string, string>;
+    data: any;
+  } | null>(null);
   const [securityBlock, setSecurityBlock] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<RequestLogItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  // Load history from localStorage & query params
   useEffect(() => {
-    const saved = localStorage.getItem('apihub-history');
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch {}
-    }
-
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const qUrl = params.get('url');
       const qMethod = params.get('method');
       if (qUrl) setUrl(qUrl);
-      if (qMethod) setMethod(qMethod as any);
+      if (qMethod && ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(qMethod)) {
+        setMethod(qMethod as any);
+      }
     }
+
+    api.workspaces
+      .bootstrap()
+      .then(async boot => {
+        setProjectId(boot.project.id);
+        const logs = await api.tester.logs(boot.project.id, 25);
+        setHistory(logs);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingHistory(false));
   }, []);
 
-  const saveToHistory = (item: HistoryItem) => {
-    const updated = [item, ...history.slice(0, 19)];
-    setHistory(updated);
-    localStorage.setItem('apihub-history', JSON.stringify(updated));
+  const buildHeaderMap = (): Record<string, string> => {
+    const map: Record<string, string> = {};
+    headers.forEach(h => {
+      const cleanKey = h.key.replace(/[\r\n\0]/g, '').trim();
+      const cleanVal = h.value.replace(/[\r\n\0]/g, '').trim();
+      if (cleanKey) map[cleanKey] = cleanVal;
+    });
+    return map;
   };
 
   const handleAddHeader = () => {
@@ -84,124 +93,85 @@ export default function TesterPage() {
   };
 
   const handleExecute = async () => {
-    setIsLoading(true);
     setSecurityBlock(null);
     setErrorMessage(null);
     setResponse(null);
 
-    if (!url.trim()) {
-      setIsLoading(false);
-      setErrorMessage('Por favor, informe a URL do endpoint que deseja testar.');
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setErrorMessage('Por favor, informe a URL completa da API (ex: https://api.seudominio.com/v1/recurso).');
       return;
     }
 
-    // 1. SSRF Client-side Security Validation
-    const isPrivateOrInternal =
-      url.includes('localhost') ||
-      url.includes('127.0.0.1') ||
-      url.includes('192.168.') ||
-      url.includes('10.') ||
-      url.includes('172.16.') ||
-      url.includes('169.254.') ||
-      url.startsWith('file:') ||
-      url.startsWith('ftp:');
-
-    if (isPrivateOrInternal) {
-      setIsLoading(false);
-      setSecurityBlock(
-        'Requisição Bloqueada por Proteção Anti-SSRF: O destino informado resolve para endereço interno, loopback ou metadados de nuvem.'
-      );
+    if (!/^https?:\/\//i.test(trimmedUrl)) {
+      setErrorMessage('A URL deve começar com http:// ou https://');
       return;
     }
 
-    // 2. Prepare real headers (sanitize CRLF & prevent header injection)
-    const headerObj: Record<string, string> = {};
-    headers.forEach(h => {
-      const cleanKey = h.key.replace(/[\r\n\0]/g, '').trim();
-      const cleanVal = h.value.replace(/[\r\n\0]/g, '').trim();
-      if (cleanKey) {
-        headerObj[cleanKey] = cleanVal;
-      }
-    });
+    if (!projectId) {
+      setErrorMessage('Workspace ainda carregando. Aguarde um instante e tente novamente.');
+      return;
+    }
 
-    const startTime = performance.now();
+    setIsLoading(true);
 
     try {
-      const hasBody = ['POST', 'PUT', 'PATCH'].includes(method) && requestBody;
-      const res = await fetch(url, {
+      const headerObj = buildHeaderMap();
+      const hasBody = ['POST', 'PUT', 'PATCH'].includes(method) && requestBody.trim().length > 0;
+
+      // Execute via Backend Proxy (Zero CORS + Real Server-Side DNS Anti-SSRF + Supabase RequestLog)
+      const res = await api.tester.execute(projectId, {
         method,
-        headers: {
-          ...headerObj,
-          ...(hasBody && !headerObj['Content-Type'] && !headerObj['content-type']
-            ? { 'Content-Type': 'application/json' }
-            : {}),
-        },
+        url: trimmedUrl,
+        headers: headerObj,
         body: hasBody ? requestBody : undefined,
       });
 
-      const durationMs = Math.round(performance.now() - startTime);
-      const text = await res.text();
-      let parsedData;
-      try {
-        parsedData = JSON.parse(text);
-      } catch {
-        parsedData = text;
+      if (res.error) {
+        setErrorMessage(`Erro na requisição remota: ${res.error}`);
       }
 
-      const resHeaders: Record<string, string> = {};
-      res.headers.forEach((val, key) => {
-        resHeaders[key] = val;
-      });
+      let parsedData: any = res.body;
+      try {
+        parsedData = JSON.parse(res.body);
+      } catch {}
 
-      const responsePayload = {
-        status: res.status,
-        statusText: res.statusText || (res.status === 200 ? 'OK' : 'Response'),
-        durationMs,
-        headers: resHeaders,
+      setResponse({
+        status: res.statusCode,
+        durationMs: res.durationMs,
+        headers: res.headers || {},
         data: parsedData,
-      };
-
-      setResponse(responsePayload);
-
-      saveToHistory({
-        id: Date.now().toString(),
-        method,
-        url,
-        status: res.status,
-        durationMs,
-        timestamp: new Date().toLocaleTimeString('pt-BR'),
       });
+
+      // Refresh logs from Supabase
+      const updatedLogs = await api.tester.logs(projectId, 25);
+      setHistory(updatedLogs);
     } catch (err: any) {
-      const durationMs = Math.round(performance.now() - startTime);
-      setErrorMessage(
-        err.message?.includes('Failed to fetch')
-          ? 'Falha na requisição (Possível bloqueio de CORS pelo servidor de destino ou URL inacessível).'
-          : err.message || 'Erro de rede ao disparar requisição.'
-      );
-
-      saveToHistory({
-        id: Date.now().toString(),
-        method,
-        url,
-        status: 0,
-        durationMs,
-        timestamp: new Date().toLocaleTimeString('pt-BR'),
-      });
+      const msg = err?.message || 'Erro ao executar requisição pelo servidor.';
+      if (msg.toLowerCase().includes('ssrf') || msg.toLowerCase().includes('private') || msg.toLowerCase().includes('blocked')) {
+        setSecurityBlock(msg);
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCopy = () => {
-    if (response) {
-      navigator.clipboard.writeText(
-        typeof response.data === 'string'
-          ? response.data
-          : JSON.stringify(response.data, null, 2)
-      );
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleClearHistory = async () => {
+    if (!projectId) return;
+    try {
+      await api.tester.clearLogs(projectId);
+      setHistory([]);
+    } catch {}
+  };
+
+  const handleCopyResponse = () => {
+    if (!response) return;
+    const text = typeof response.data === 'string' ? response.data : JSON.stringify(response.data, null, 2);
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -211,19 +181,22 @@ export default function TesterPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">API Tester Seguro</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Execute requisições HTTP reais com medição exata de latência, headers e proteção ativa contra SSRF.
+            Disparo real via Proxy do Servidor (sem bloqueios de CORS), blindagem anti-SSRF via DNS e logs no Supabase.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-950/40 text-blue-400 border border-blue-800">
+            <Server className="w-4 h-4" /> Proxy Backend (Sem CORS)
+          </span>
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-800">
-            <ShieldCheck className="w-4 h-4" /> Blindagem Anti-SSRF Ativa
+            <ShieldCheck className="w-4 h-4" /> Anti-SSRF Real (DNS)
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Tester Box (2 Cols) */}
+        {/* Main Tester Box */}
         <div className="lg:col-span-2 space-y-5">
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row gap-2">
@@ -243,7 +216,8 @@ export default function TesterPage() {
                 type="text"
                 value={url}
                 onChange={e => setUrl(e.target.value)}
-                placeholder="https://api.exemplo.com/v1/recurso"
+                onKeyDown={e => e.key === 'Enter' && handleExecute()}
+                placeholder="https://api.seusistema.com/v1/recurso"
                 className="flex-1 bg-black/50 border border-[var(--border)] rounded-lg px-4 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
               />
 
@@ -269,7 +243,7 @@ export default function TesterPage() {
                   activeTab === 'params' ? 'border-blue-500 text-blue-400' : 'border-transparent text-zinc-400 hover:text-white'
                 }`}
               >
-                Headers & Parâmetros
+                Headers
               </button>
               {['POST', 'PUT', 'PATCH'].includes(method) && (
                 <button
@@ -278,186 +252,187 @@ export default function TesterPage() {
                     activeTab === 'body' ? 'border-blue-500 text-blue-400' : 'border-transparent text-zinc-400 hover:text-white'
                   }`}
                 >
-                  Corpo JSON (Body)
+                  Body (JSON)
                 </button>
               )}
+              <button
+                onClick={() => setActiveTab('code')}
+                className={`pb-2 border-b-2 transition ${
+                  activeTab === 'code' ? 'border-blue-500 text-blue-400' : 'border-transparent text-zinc-400 hover:text-white'
+                }`}
+              >
+                Código (cURL / fetch / Python)
+              </button>
             </div>
 
-            {/* Tab: Headers */}
+            {/* Headers Tab */}
             {activeTab === 'params' && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Cabeçalhos HTTP (Headers)</span>
-                  <button
-                    onClick={handleAddHeader}
-                    className="text-blue-400 hover:underline flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Adicionar Cabeçalho
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {headers.map((h, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={h.key}
-                        onChange={e => handleHeaderChange(i, 'key', e.target.value)}
-                        placeholder="Chave (ex: Authorization)"
-                        className="flex-1 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono"
-                      />
-                      <input
-                        type="text"
-                        value={h.value}
-                        onChange={e => handleHeaderChange(i, 'value', e.target.value)}
-                        placeholder="Valor"
-                        className="flex-1 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono"
-                      />
-                      <button
-                        onClick={() => handleRemoveHeader(i)}
-                        className="p-2 text-zinc-500 hover:text-red-400 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-2">
+                {headers.map((h, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={h.key}
+                      onChange={e => handleHeaderChange(idx, 'key', e.target.value)}
+                      placeholder="Header (ex: Authorization)"
+                      className="flex-1 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={h.value}
+                      onChange={e => handleHeaderChange(idx, 'value', e.target.value)}
+                      placeholder="Valor"
+                      className="flex-1 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => handleRemoveHeader(idx)}
+                      className="p-1.5 text-zinc-500 hover:text-red-400 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={handleAddHeader}
+                  className="text-xs text-blue-400 hover:underline flex items-center gap-1 pt-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Header
+                </button>
               </div>
             )}
 
-            {/* Tab: Body */}
+            {/* Body Tab */}
             {activeTab === 'body' && (
-              <div className="pt-2">
-                <textarea
-                  rows={5}
-                  value={requestBody}
-                  onChange={e => setRequestBody(e.target.value)}
-                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-3 text-xs font-mono focus:outline-none focus:border-blue-500"
-                />
-              </div>
+              <textarea
+                rows={7}
+                value={requestBody}
+                onChange={e => setRequestBody(e.target.value)}
+                placeholder='{"chave": "valor"}'
+                className="w-full bg-black/50 border border-[var(--border)] rounded-lg p-3 text-xs font-mono focus:outline-none focus:border-blue-500"
+              />
+            )}
+
+            {/* Code Generator Tab */}
+            {activeTab === 'code' && (
+              <CodeSnippetBox
+                request={{
+                  method,
+                  url: url.trim(),
+                  headers: buildHeaderMap(),
+                  body: requestBody,
+                }}
+              />
             )}
           </div>
 
-          {/* Security Alert */}
+          {/* Security Block Banner */}
           {securityBlock && (
-            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-start gap-3 shadow-xl">
-              <ShieldAlert className="w-5 h-5 flex-shrink-0 text-red-400 mt-0.5" />
+            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-sm">Bloqueio Ativo de Segurança (Anti-SSRF)</p>
+                <p className="font-bold text-red-300">Bloqueio de Segurança Anti-SSRF (Servidor)</p>
                 <p>{securityBlock}</p>
               </div>
             </div>
           )}
 
-          {/* Error Message */}
+          {/* Error Banner */}
           {errorMessage && (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800 text-amber-300 text-xs flex items-start gap-3 shadow-xl">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-sm">Alerta de Comunicação</p>
-                <p>{errorMessage}</p>
-              </div>
+            <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800 text-amber-200 text-xs flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p>{errorMessage}</p>
             </div>
           )}
 
           {/* Response Viewer */}
           {response && (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl space-y-4 animate-in fade-in duration-200">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xl space-y-3">
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-xs">
                 <div className="flex items-center gap-3">
                   <span
-                    className={`font-mono font-bold px-2.5 py-1 rounded border ${
+                    className={`font-mono font-bold px-2.5 py-0.5 rounded border ${
                       response.status >= 200 && response.status < 300
-                        ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700'
-                        : 'bg-red-950/80 text-red-300 border-red-700'
+                        ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                        : response.status >= 400 || response.status === 0
+                        ? 'bg-rose-950/60 text-rose-400 border-rose-800'
+                        : 'bg-amber-950/60 text-amber-400 border-amber-800'
                     }`}
                   >
-                    {response.status} {response.statusText}
+                    HTTP {response.status || 'ERR'}
                   </span>
-                  <span className="text-zinc-400 flex items-center gap-1 font-mono">
+                  <span className="text-zinc-400 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" /> {response.durationMs} ms
                   </span>
                 </div>
 
                 <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border)] text-zinc-400 hover:text-white transition"
+                  onClick={handleCopyResponse}
+                  className="px-2.5 py-1 rounded border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 flex items-center gap-1.5 transition"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copiado!' : 'Copiar Resposta'}</span>
+                  {copied ? 'Copiado!' : 'Copiar Resposta'}
                 </button>
               </div>
 
-              <div className="rounded-lg bg-black/60 border border-[var(--border)] p-4 overflow-x-auto">
-                <pre className="text-xs font-mono text-emerald-300 max-h-96">
-                  {typeof response.data === 'string'
-                    ? response.data
-                    : JSON.stringify(response.data, null, 2)}
-                </pre>
-              </div>
+              <pre className="bg-black/60 border border-[var(--border)] rounded-lg p-3 text-xs font-mono text-emerald-300 overflow-x-auto max-h-96">
+                {typeof response.data === 'string'
+                  ? response.data || '(Resposta vazia)'
+                  : JSON.stringify(response.data, null, 2)}
+              </pre>
             </div>
           )}
         </div>
 
-        {/* Sidebar: Request History */}
-        <div className="space-y-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h2 className="font-bold text-sm flex items-center gap-2">
-                <History className="w-4 h-4 text-blue-400" /> Histórico Recente
-              </h2>
-              {history.length > 0 && (
-                <button
-                  onClick={() => {
-                    setHistory([]);
-                    localStorage.removeItem('apihub-history');
-                  }}
-                  className="text-[11px] text-zinc-500 hover:text-red-400 transition"
-                >
-                  Limpar
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2 max-h-[500px] overflow-y-auto">
-              {history.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-6">
-                  Nenhum teste executado ainda. Suas requisições aparecerão aqui em tempo real.
-                </p>
-              ) : (
-                history.map(item => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setMethod(item.method as any);
-                      setUrl(item.url);
-                    }}
-                    className="p-3 rounded-lg border border-[var(--border)] bg-black/30 hover:border-zinc-700 cursor-pointer transition space-y-1 text-xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-[10px] text-blue-400">{item.method}</span>
-                      <span
-                        className={`font-mono text-[10px] font-bold ${
-                          item.status >= 200 && item.status < 300
-                            ? 'text-emerald-400'
-                            : item.status === 0
-                            ? 'text-zinc-500'
-                            : 'text-rose-400'
-                        }`}
-                      >
-                        {item.status === 0 ? 'ERR' : item.status}
-                      </span>
-                    </div>
-                    <p className="font-mono text-zinc-300 truncate text-[11px]">{item.url}</p>
-                    <div className="flex items-center justify-between text-[10px] text-zinc-500 pt-0.5">
-                      <span>{item.durationMs}ms</span>
-                      <span>{item.timestamp}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        {/* Real Supabase History Sidebar */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xl space-y-4 h-fit">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+            <h2 className="font-bold text-sm flex items-center gap-2">
+              <History className="w-4 h-4 text-blue-400" /> Histórico na Nuvem
+            </h2>
+            {history.length > 0 && (
+              <button
+                onClick={handleClearHistory}
+                className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 transition"
+              >
+                <RotateCcw className="w-3 h-3" /> Limpar
+              </button>
+            )}
           </div>
+
+          {isLoadingHistory ? (
+            <p className="text-xs text-zinc-500 text-center py-6">Carregando histórico...</p>
+          ) : history.length === 0 ? (
+            <p className="text-xs text-zinc-500 text-center py-6">
+              Nenhuma requisição executada ainda.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+              {history.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setMethod(item.method as any);
+                    setUrl(item.url);
+                  }}
+                  className="w-full text-left p-2.5 rounded-lg border border-[var(--border)] bg-black/30 hover:border-zinc-700 transition space-y-1"
+                >
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-mono font-bold text-blue-400">{item.method}</span>
+                    <span
+                      className={`font-mono font-bold ${
+                        item.statusCode >= 200 && item.statusCode < 300
+                          ? 'text-emerald-400'
+                          : 'text-rose-400'
+                      }`}
+                    >
+                      {item.statusCode || 'ERR'} • {item.durationMs}ms
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-zinc-300 truncate">{item.url}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,10 +1,19 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { CreateWorkspaceSchema } from '@apihub/shared';
 import { workspacesService } from './workspaces.service';
 import { authenticate, requireWorkspaceRole } from '../../middleware/auth';
 
 export async function workspacesRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authenticate);
+
+  app.get('/bootstrap', async (request, reply) => {
+    const data = await workspacesService.bootstrap(request.user!.id);
+    return reply.send({
+      success: true,
+      data,
+    });
+  });
 
   app.get('/', async (request, reply) => {
     const workspaces = await workspacesService.listForUser(request.user!.id);
@@ -42,6 +51,52 @@ export async function workspacesRoutes(app: FastifyInstance) {
       return reply.send({
         success: true,
         data: { workspace },
+      });
+    }
+  );
+
+  app.get('/:workspaceId/members', async (request, reply) => {
+    const { workspaceId } = request.params as { workspaceId: string };
+    const members = await workspacesService.listMembers(workspaceId, request.user!.id);
+    return reply.send({
+      success: true,
+      data: { members },
+    });
+  });
+
+  app.post(
+    '/:workspaceId/members',
+    { preHandler: [requireWorkspaceRole(['OWNER', 'ADMIN'])] },
+    async (request, reply) => {
+      const { workspaceId } = request.params as { workspaceId: string };
+      const input = z
+        .object({
+          email: z.string().email('Informe um e-mail válido'),
+          role: z.enum(['ADMIN', 'EDITOR', 'VIEWER']).default('EDITOR'),
+        })
+        .parse(request.body);
+      const result = await workspacesService.addMember(
+        workspaceId,
+        request.user!.id,
+        input.email,
+        input.role
+      );
+      return reply.status(201).send({
+        success: true,
+        data: result,
+      });
+    }
+  );
+
+  app.delete(
+    '/:workspaceId/members/:memberId',
+    { preHandler: [requireWorkspaceRole(['OWNER', 'ADMIN'])] },
+    async (request, reply) => {
+      const { workspaceId, memberId } = request.params as { workspaceId: string; memberId: string };
+      const result = await workspacesService.removeMember(workspaceId, memberId);
+      return reply.send({
+        success: true,
+        data: result,
       });
     }
   );

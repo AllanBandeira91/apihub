@@ -105,6 +105,13 @@ export class AuthService {
             role: 'OWNER',
           },
         },
+        projects: {
+          create: {
+            name: 'Projeto Principal',
+            slug: 'principal',
+            description: 'Projeto padrão do workspace',
+          },
+        },
       },
     });
 
@@ -198,6 +205,13 @@ export class AuthService {
             role: 'OWNER',
           },
         },
+        projects: {
+          create: {
+            name: 'Projeto Principal',
+            slug: 'principal',
+            description: 'Projeto padrão do workspace',
+          },
+        },
       },
     });
 
@@ -267,6 +281,75 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async updateProfile(userId: string, name: string) {
+    const cleanName = name.trim();
+    if (cleanName.length < 2) {
+      throw new AppError('O nome deve ter pelo menos 2 caracteres.', 400, 'INVALID_NAME');
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { name: cleanName },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+
+    return updated;
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (newPassword.length < 8) {
+      throw new AppError('A nova senha deve ter no mínimo 8 caracteres.', 400, 'WEAK_PASSWORD');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new AppError('A senha atual informada está incorreta.', 401, 'INVALID_CURRENT_PASSWORD');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { message: 'Senha atualizada com sucesso!' };
+  }
+
+  async deleteAccount(userId: string, password: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      throw new AppError('Senha incorreta. Confirme sua senha para excluir a conta.', 401, 'INVALID_PASSWORD');
+    }
+
+    await prisma.emailVerification.deleteMany({
+      where: { email: user.email },
+    });
+
+    // Cascade deletes owned workspaces, projects, APIs, endpoints, keys and logs
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return { message: 'Conta e todos os dados associados excluídos permanentemente (LGPD Art. 18).' };
   }
 }
 

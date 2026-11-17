@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { CreateApiDefinitionSchema, CreateEndpointSchema } from '@apihub/shared';
 import { apisService } from './apis.service';
 import { authenticate } from '../../middleware/auth';
@@ -21,6 +22,44 @@ export async function apisRoutes(app: FastifyInstance) {
       return reply.send({
         success: true,
         data: { apis },
+      });
+    });
+
+    protectedScope.get('/projects/:projectId/endpoints', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const endpoints = await apisService.listEndpointsByProject(projectId, request.user!.id);
+      return reply.send({
+        success: true,
+        data: { endpoints },
+      });
+    });
+
+    protectedScope.post('/projects/:projectId/endpoints/quick', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const input = z
+        .object({
+          method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+          path: z.string().min(1),
+          summary: z.string().min(1),
+          description: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+          apiName: z.string().optional(),
+          baseUrl: z.string().optional(),
+        })
+        .parse(request.body);
+      const endpoint = await apisService.quickCreateEndpoint(projectId, request.user!.id, input);
+      return reply.status(201).send({
+        success: true,
+        data: { endpoint },
+      });
+    });
+
+    protectedScope.post('/projects/:projectId/import-openapi', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const result = await apisService.importOpenApi(projectId, request.user!.id, request.body);
+      return reply.status(201).send({
+        success: true,
+        data: result,
       });
     });
 

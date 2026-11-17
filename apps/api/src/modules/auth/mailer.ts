@@ -96,3 +96,57 @@ export async function sendVerificationEmail(
     );
   }
 }
+
+export async function sendWorkspaceInviteEmail(
+  to: string,
+  inviterName: string,
+  workspaceName: string,
+  role: string,
+  alreadyRegistered: boolean
+): Promise<void> {
+  const sanitizedTo = to.replace(/[\r\n\0]/g, '').trim();
+  const transporter = createTransporter();
+
+  const subject = `APIHub — ${inviterName} convidou você para o workspace "${workspaceName}"`;
+  const actionText = alreadyRegistered
+    ? 'Você já foi adicionado ao workspace com sucesso! Basta acessar sua conta no APIHub para colaborar.'
+    : 'Crie sua conta gratuita no APIHub usando este mesmo e-mail para começar a colaborar com a equipe.';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #f4f4f5; padding: 32px 16px;">
+      <div style="max-width: 480px; margin: 0 auto; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 32px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display: inline-block; width: 40px; height: 40px; line-height: 40px; border-radius: 10px; background-color: #2563eb; color: #ffffff; font-weight: bold; font-size: 20px;">
+            λ
+          </div>
+          <h1 style="margin: 16px 0 8px; font-size: 20px; color: #ffffff;">Convite para Workspace</h1>
+          <p style="margin: 0; font-size: 13px; color: #a1a1aa; line-height: 1.5;">
+            <strong>${inviterName}</strong> convidou você para o workspace <strong>${workspaceName}</strong> com permissão de <strong>${role}</strong>.
+          </p>
+        </div>
+
+        <p style="font-size: 13px; color: #d4d4d8; text-align: center; line-height: 1.6; margin: 20px 0;">
+          ${actionText}
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #27272a; margin: 24px 0;" />
+
+        <p style="font-size: 11px; color: #52525b; text-align: center; margin: 0;">
+          APIHub • Plataforma de Gestão de APIs • Suporte: apihubsupport@gmail.com
+        </p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: env.SMTP_FROM,
+      to: sanitizedTo,
+      subject,
+      text: `${inviterName} convidou você para o workspace "${workspaceName}" (${role}). ${actionText}`,
+      html,
+    });
+  } catch {
+    // Non-fatal if invite email fails when user is already added to workspace
+  }
+}

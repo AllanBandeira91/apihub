@@ -15,7 +15,8 @@ import {
   X,
   ExternalLink,
   Shield,
-  FolderGit2
+  FolderGit2,
+  Settings
 } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { api, getStoredUser } from '../../lib/api';
@@ -66,6 +67,7 @@ export default function DashboardLayout({
     { label: 'API Tester Seguro', href: '/dashboard/tester', icon: Terminal },
     { label: 'Documentação OpenAPI', href: '/dashboard/docs', icon: BookOpen },
     { label: 'Gerenciador de Chaves', href: '/dashboard/keys', icon: Key },
+    { label: 'Configurações', href: '/dashboard/settings', icon: Settings },
   ];
 
   if (isCheckingAuth) {

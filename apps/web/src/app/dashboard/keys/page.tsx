@@ -1,75 +1,71 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Key, Plus, Shield, Trash2, Copy, Check, AlertTriangle, X, Inbox } from 'lucide-react';
-
-export interface ApiKeyItem {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  permissions: string[];
-  createdAt: string;
-  revokedAt: string | null;
-}
+import { Key, Plus, Copy, Check, AlertTriangle, X, Inbox, AlertCircle } from 'lucide-react';
+import { api, ApiKeyItem } from '../../../lib/api';
 
 export default function KeysPage() {
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('apihub-keys');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setKeys(parsed);
-      } catch {}
-    }
-    setIsLoaded(true);
-  }, []);
-
-  const saveKeys = (items: ApiKeyItem[]) => {
-    setKeys(items);
-    localStorage.setItem('apihub-keys', JSON.stringify(items));
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const handleCreateKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKeyName) return;
-
-    // Generate real secure random secret
-    const bytes = new Uint8Array(24);
-    window.crypto.getRandomValues(bytes);
-    const randomHex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-    const fullSecret = `ah_live_${randomHex}`;
-    const prefix = fullSecret.slice(0, 16) + '...';
-
-    const now = new Date();
-    const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-
-    const newKey: ApiKeyItem = {
-      id: Date.now().toString(),
-      name: newKeyName,
-      keyPrefix: prefix,
-      permissions: ['read', 'write'],
-      createdAt: formattedDate,
-      revokedAt: null,
-    };
-
-    saveKeys([newKey, ...keys]);
-    setIsCreateModalOpen(false);
-    setNewKeyName('');
-    setCreatedSecret(fullSecret);
+  const loadKeys = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const boot = await api.workspaces.bootstrap();
+      setWorkspaceId(boot.workspace.id);
+      const list = await api.keys.list(boot.workspace.id);
+      setKeys(list);
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao carregar chaves do banco de dados.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRevoke = (id: string) => {
-    const now = new Date();
-    const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-    saveKeys(keys.map(k => (k.id === id ? { ...k, revokedAt: formattedDate } : k)));
+  useEffect(() => {
+    loadKeys();
+  }, []);
+
+  const handleCreateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newKeyName.trim() || !workspaceId) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const res = await api.keys.create(workspaceId, newKeyName.trim(), ['read', 'write']);
+      setKeys(prev => [res.apiKey, ...prev]);
+      setIsCreateModalOpen(false);
+      setNewKeyName('');
+      setCreatedSecret(res.secretKey);
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao criar chave de API.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRevoke = async (id: string) => {
+    if (!workspaceId) return;
+    setError(null);
+    try {
+      await api.keys.revoke(workspaceId, id);
+      setKeys(prev =>
+        prev.map(k => (k.id === id ? { ...k, revokedAt: new Date().toISOString() } : k))
+      );
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao revogar chave.');
+    }
   };
 
   const handleCopySecret = () => {
@@ -80,6 +76,14 @@ export default function KeysPage() {
     }
   };
 
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString('pt-BR');
+    } catch {
+      return iso;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -87,7 +91,7 @@ export default function KeysPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Gerenciador de API Keys</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Chaves criptografadas para autenticar chamadas à API com hash SHA-256 no banco de dados.
+            Chaves geradas no servidor com hash SHA-256 gravado no Supabase e exibição única.
           </p>
         </div>
 
@@ -98,6 +102,13 @@ export default function KeysPage() {
           <Plus className="w-4 h-4" /> Nova API Key
         </button>
       </div>
+
+      {error && (
+        <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Secret Display Banner (shown only once upon creation) */}
       {createdSecret && (
@@ -114,7 +125,7 @@ export default function KeysPage() {
             </button>
           </div>
           <p className="text-xs text-zinc-300 leading-relaxed">
-            Por razões de segurança estrita e proteção contra vazamento, este segredo completo <strong>nunca mais será exibido</strong>. Apenas o hash SHA-256 é armazenado no servidor.
+            Por razões de segurança estrita, este segredo completo <strong>nunca mais será exibido</strong>. Apenas o hash criptográfico SHA-256 foi salvo no Supabase.
           </p>
           <div className="flex items-center gap-2">
             <input
@@ -134,8 +145,13 @@ export default function KeysPage() {
         </div>
       )}
 
-      {/* Keys List or Empty State */}
-      {isLoaded && keys.length === 0 ? (
+      {/* Loading / Empty / Table */}
+      {isLoading ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
+          <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-zinc-400">Carregando chaves do Supabase...</p>
+        </div>
+      ) : keys.length === 0 ? (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center space-y-4 shadow-xl">
           <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
             <Inbox className="w-7 h-7" />
@@ -143,7 +159,7 @@ export default function KeysPage() {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="font-bold text-lg text-white">Nenhuma chave de API criada</h3>
             <p className="text-xs text-zinc-400">
-              Gere chaves de API para autenticar requisições automatizadas, pipelines de CI/CD e integrações de terceiros de forma segura.
+              Gere chaves de API criptografadas com SHA-256 para autenticar integrações e pipelines de forma segura.
             </p>
           </div>
           <button
@@ -154,7 +170,7 @@ export default function KeysPage() {
           </button>
         </div>
       ) : (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-xl">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-x-auto shadow-xl">
           <table className="w-full text-left text-xs">
             <thead className="bg-black/30 border-b border-[var(--border)] text-zinc-400 uppercase tracking-wider font-semibold">
               <tr>
@@ -170,7 +186,7 @@ export default function KeysPage() {
               {keys.map(k => (
                 <tr key={k.id} className="hover:bg-black/20 transition">
                   <td className="p-4 font-semibold text-white">{k.name}</td>
-                  <td className="p-4 font-mono text-zinc-400">{k.keyPrefix}</td>
+                  <td className="p-4 font-mono text-zinc-400">{k.keyPrefix}...</td>
                   <td className="p-4">
                     <div className="flex items-center gap-1">
                       {k.permissions.map(p => (
@@ -183,11 +199,11 @@ export default function KeysPage() {
                       ))}
                     </div>
                   </td>
-                  <td className="p-4 text-zinc-400">{k.createdAt}</td>
+                  <td className="p-4 text-zinc-400">{formatDate(k.createdAt)}</td>
                   <td className="p-4">
                     {k.revokedAt ? (
-                      <span className="text-rose-400 font-semibold flex items-center gap-1">
-                        Revogada em {k.revokedAt}
+                      <span className="text-rose-400 font-semibold">
+                        Revogada em {formatDate(k.revokedAt)}
                       </span>
                     ) : (
                       <span className="text-emerald-400 font-semibold flex items-center gap-1">
@@ -234,6 +250,7 @@ export default function KeysPage() {
                 <input
                   type="text"
                   required
+                  minLength={2}
                   value={newKeyName}
                   onChange={e => setNewKeyName(e.target.value)}
                   placeholder="Ex: Servidor de Produção / Pipeline CI"
@@ -242,9 +259,9 @@ export default function KeysPage() {
               </div>
 
               <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400 space-y-1">
-                <p className="font-semibold text-zinc-300">Permissões Padrão:</p>
-                <p>• Leitura e escrita nos endpoints autorizados do seu workspace.</p>
-                <p>• Criptografada com SHA-256 no banco de dados.</p>
+                <p className="font-semibold text-zinc-300">Segurança Criptográfica:</p>
+                <p>• Gerada no servidor com entropia segura (`crypto.randomBytes`).</p>
+                <p>• Armazenada exclusivamente como hash SHA-256 no Supabase.</p>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
@@ -257,9 +274,10 @@ export default function KeysPage() {
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
+                  disabled={isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
                 >
-                  Gerar Chave Segura
+                  {isSubmitting ? 'Gerando...' : 'Gerar Chave Segura'}
                 </button>
               </div>
             </form>

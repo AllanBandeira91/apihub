@@ -27,6 +27,15 @@ export async function testerRoutes(app: FastifyInstance) {
     });
   });
 
+  app.delete('/projects/:projectId/tester/logs', async (request, reply) => {
+    const { projectId } = request.params as { projectId: string };
+    const result = await testerService.clearLogs(projectId);
+    return reply.send({
+      success: true,
+      data: result,
+    });
+  });
+
   app.get('/projects/:projectId/metrics', async (request, reply) => {
     const { projectId } = request.params as { projectId: string };
     const metrics = await testerService.getMetrics(projectId);
