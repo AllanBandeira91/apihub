@@ -106,7 +106,7 @@ export class TesterService {
 
     // Default User-Agent
     if (!sanitizedHeaders['User-Agent'] && !sanitizedHeaders['user-agent']) {
-      sanitizedHeaders['User-Agent'] = 'APIHub-Tester/1.0';
+      sanitizedHeaders['User-Agent'] = 'CloudAPI-Tester/1.0';
     }
 
     // 4. Execute fetch with timeout and size limits

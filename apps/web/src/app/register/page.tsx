@@ -67,7 +67,7 @@ export default function RegisterPage() {
             λ
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {step === 'form' ? 'Criar Conta no APIHub' : 'Verificar E-mail'}
+            {step === 'form' ? 'Criar Conta no CloudAPI' : 'Verificar E-mail'}
           </h1>
           <p className="text-xs text-zinc-400">
             {step === 'form'
@@ -220,7 +220,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="text-center text-xs text-zinc-500 py-2">
-        APIHub • Plataforma de Gestão de APIs • Em Desenvolvimento
+        CloudAPI • Plataforma de Gestão de APIs • Em Desenvolvimento
       </div>
     </div>
   );

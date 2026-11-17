@@ -39,16 +39,16 @@ export async function sendVerificationEmail(
 
   const isReset = type === 'PASSWORD_RESET';
   const subject = isReset
-    ? 'APIHub — Código para Recuperação de Senha'
-    : 'APIHub — Código de Verificação da sua Conta';
+    ? 'CloudAPI — Código para Recuperação de Senha'
+    : 'CloudAPI — Código de Verificação da sua Conta';
 
   const heading = isReset
     ? 'Redefinição de Senha'
-    : 'Confirme seu E-mail no APIHub';
+    : 'Confirme seu E-mail no CloudAPI';
 
   const description = isReset
-    ? 'Recebemos uma solicitação para alterar a senha da sua conta no APIHub. Utilize o código abaixo para continuar:'
-    : 'Falta apenas um passo para ativar sua conta no APIHub. Digite o código abaixo na tela de cadastro:';
+    ? 'Recebemos uma solicitação para alterar a senha da sua conta no CloudAPI. Utilize o código abaixo para continuar:'
+    : 'Falta apenas um passo para ativar sua conta no CloudAPI. Digite o código abaixo na tela de cadastro:';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #f4f4f5; padding: 32px 16px;">
@@ -74,7 +74,7 @@ export async function sendVerificationEmail(
         <hr style="border: none; border-top: 1px solid #27272a; margin: 24px 0;" />
 
         <p style="font-size: 11px; color: #52525b; text-align: center; margin: 0;">
-          APIHub • Plataforma de Gestão de APIs • Suporte: apihubsupport@gmail.com
+          CloudAPI • Plataforma de Gestão de APIs • Suporte: apihubsupport@gmail.com
         </p>
       </div>
     </div>
@@ -107,10 +107,10 @@ export async function sendWorkspaceInviteEmail(
   const sanitizedTo = to.replace(/[\r\n\0]/g, '').trim();
   const transporter = createTransporter();
 
-  const subject = `APIHub — ${inviterName} convidou você para o workspace "${workspaceName}"`;
+  const subject = `CloudAPI — ${inviterName} convidou você para o workspace "${workspaceName}"`;
   const actionText = alreadyRegistered
-    ? 'Você já foi adicionado ao workspace com sucesso! Basta acessar sua conta no APIHub para colaborar.'
-    : 'Crie sua conta gratuita no APIHub usando este mesmo e-mail para começar a colaborar com a equipe.';
+    ? 'Você já foi adicionado ao workspace com sucesso! Basta acessar sua conta no CloudAPI para colaborar.'
+    : 'Crie sua conta gratuita no CloudAPI usando este mesmo e-mail para começar a colaborar com a equipe.';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #f4f4f5; padding: 32px 16px;">
@@ -132,7 +132,7 @@ export async function sendWorkspaceInviteEmail(
         <hr style="border: none; border-top: 1px solid #27272a; margin: 24px 0;" />
 
         <p style="font-size: 11px; color: #52525b; text-align: center; margin: 0;">
-          APIHub • Plataforma de Gestão de APIs • Suporte: apihubsupport@gmail.com
+          CloudAPI • Plataforma de Gestão de APIs • Suporte: apihubsupport@gmail.com
         </p>
       </div>
     </div>
@@ -170,8 +170,8 @@ export async function sendUptimeAlertEmail(params: {
 
   const isDown = params.status === 'DOWN';
   const subject = isDown
-    ? `[ALERTA CRÍTICO] APIHub — "${params.monitorName}" está FORA DO AR`
-    : `[RECUPERADO] APIHub — "${params.monitorName}" voltou ao normal`;
+    ? `[ALERTA CRÍTICO] CloudAPI — "${params.monitorName}" está FORA DO AR`
+    : `[RECUPERADO] CloudAPI — "${params.monitorName}" voltou ao normal`;
 
   const badgeColor = isDown ? '#dc2626' : '#16a34a';
   const badgeLabel = isDown ? 'OFFLINE / DOWN' : 'ONLINE / UP';
@@ -197,7 +197,7 @@ export async function sendUptimeAlertEmail(params: {
         <hr style="border: none; border-top: 1px solid #27272a; margin: 24px 0;" />
 
         <p style="font-size: 11px; color: #52525b; text-align: center; margin: 0;">
-          APIHub Monitoramento Automático • Suporte: apihubsupport@gmail.com
+          CloudAPI Monitoramento Automático • Suporte: apihubsupport@gmail.com
         </p>
       </div>
     </div>

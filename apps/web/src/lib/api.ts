@@ -1,4 +1,4 @@
-// API Client for APIHub Frontend (100% Real Backend + Supabase)
+// API Client for CloudAPI Frontend (100% Real Backend + Supabase)
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333/api/v1';
 

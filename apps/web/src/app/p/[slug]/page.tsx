@@ -61,7 +61,7 @@ export default function PublicDocsPortalPage() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
               λ
             </div>
-            <span className="font-bold text-base tracking-tight">APIHub Docs</span>
+            <span className="font-bold text-base tracking-tight">CloudAPI Docs</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800 font-semibold flex items-center gap-1">
               <Globe className="w-3 h-3" /> Público
             </span>
@@ -73,7 +73,7 @@ export default function PublicDocsPortalPage() {
               href="/register"
               className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition"
             >
-              Criar sua API no APIHub
+              Criar sua API no CloudAPI
             </Link>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function PublicDocsPortalPage() {
               href="/"
               className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold"
             >
-              Voltar ao APIHub
+              Voltar ao CloudAPI
             </Link>
           </div>
         ) : (
@@ -265,7 +265,7 @@ export default function PublicDocsPortalPage() {
       <footer className="border-t border-[var(--border)] py-6 text-center text-xs text-zinc-500">
         Documentação publicada via{' '}
         <Link href="/" className="text-blue-400 hover:underline font-semibold inline-flex items-center gap-1">
-          APIHub <ExternalLink className="w-3 h-3" />
+          CloudAPI <ExternalLink className="w-3 h-3" />
         </Link>
       </footer>
     </div>

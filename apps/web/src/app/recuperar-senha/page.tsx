@@ -216,7 +216,7 @@ export default function RecuperarSenhaPage() {
       </div>
 
       <div className="text-center text-xs text-zinc-500 py-2">
-        APIHub • Plataforma de Gestão de APIs • Em Desenvolvimento
+        CloudAPI • Plataforma de Gestão de APIs • Em Desenvolvimento
       </div>
     </div>
   );

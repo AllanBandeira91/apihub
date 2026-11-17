@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { CookieConsentBanner } from '../components/CookieConsentBanner';
 
 export const metadata: Metadata = {
-  title: 'APIHub - Plataforma Open-Source de Gestão de APIs',
-  description: 'Gerencie projetos, documente endpoints, teste requisições com segurança anti-SSRF e acompanhe métricas reais.',
+  title: 'CloudAPI — Plataforma de Gestão, Testes e Monitoramento de APIs',
+  description: 'Gerencie workspaces, documente endpoints OpenAPI, monitore uptime 24/7 e teste requisições com proteção anti-SSRF.',
 };
 
 export default function RootLayout({

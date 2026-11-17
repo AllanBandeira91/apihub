@@ -21,7 +21,7 @@ export default function TermosPage() {
             </span>
           </div>
           <p className="text-xs text-zinc-400">
-            Última atualização: 17 de Novembro de 2026 • Termos reguladores do serviço APIHub (Em Desenvolvimento • Acesso Antecipado)
+            Última atualização: 17 de Novembro de 2026 • Termos reguladores do serviço CloudAPI (Em Desenvolvimento • Acesso Antecipado)
           </p>
         </div>
 
@@ -29,18 +29,18 @@ export default function TermosPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-white">1. Aceitação dos Termos</h2>
             <p>
-              Ao acessar ou utilizar a plataforma <strong>APIHub</strong>, você declara ter lido, compreendido e concordado integralmente com estes Termos de Uso. Caso não concorde com qualquer disposição aqui estabelecida, solicitamos que não continue a utilizar os nossos serviços.
+              Ao acessar ou utilizar a plataforma <strong>CloudAPI</strong>, você declara ter lido, compreendido e concordado integralmente com estes Termos de Uso. Caso não concorde com qualquer disposição aqui estabelecida, solicitamos que não continue a utilizar os nossos serviços.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-white">2. Objeto e Natureza do Serviço</h2>
             <p>
-              O APIHub é uma plataforma web para catalogação, documentação, gestão de chaves e testes de APIs. Na sua versão atual:
+              O CloudAPI é uma plataforma web para catalogação, documentação, gestão de chaves e testes de APIs. Na sua versão atual:
             </p>
             <ul className="list-disc pl-5 space-y-1 text-zinc-400">
               <li>O serviço atua como catalogador e organizador de rotas de APIs preexistentes.</li>
-              <li>O APIHub <strong>não é um serviço de hospedagem de servidores ou gateways de produção</strong>.</li>
+              <li>O CloudAPI <strong>não é um serviço de hospedagem de servidores ou gateways de produção</strong>.</li>
               <li>A ferramenta de testes faz chamadas HTTP sob solicitação direta e exclusiva do usuário autenticado.</li>
             </ul>
           </section>
@@ -70,7 +70,7 @@ export default function TermosPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-white">5. Propriedade Intelectual e Modelo de Contribuição</h2>
             <p>
-              O APIHub é um software em desenvolvimento ativo com modelo de código disponível para acesso antecipado e colaboração com a comunidade (não é open-source irrestrito). Desenvolvedores e parceiros podem acessar a plataforma em desenvolvimento, reportar melhorias e submeter contribuições técnicas sujeitas à revisão e incorporação pela equipe oficial do APIHub.
+              O CloudAPI é um software em desenvolvimento ativo com modelo de código disponível para acesso antecipado e colaboração com a comunidade (não é open-source irrestrito). Desenvolvedores e parceiros podem acessar a plataforma em desenvolvimento, reportar melhorias e submeter contribuições técnicas sujeitas à revisão e incorporação pela equipe oficial do CloudAPI.
             </p>
           </section>
 
@@ -91,7 +91,7 @@ export default function TermosPage() {
       </main>
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-zinc-500">
-        <p>APIHub • Termos e Condições de Uso • 2026</p>
+        <p>CloudAPI • Termos e Condições de Uso • 2026</p>
       </footer>
     </div>
   );

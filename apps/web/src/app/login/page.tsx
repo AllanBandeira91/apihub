@@ -43,7 +43,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xl mx-auto shadow-md">
             λ
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Entrar no APIHub</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Entrar no CloudAPI</h1>
           <p className="text-xs text-zinc-400">
             Acesse seus workspaces, documentações e ferramentas de teste
           </p>
@@ -114,7 +114,7 @@ export default function LoginPage() {
       </div>
 
       <div className="text-center text-xs text-zinc-500 py-2">
-        APIHub • Plataforma de Gestão de APIs • Em Desenvolvimento
+        CloudAPI • Plataforma de Gestão de APIs • Em Desenvolvimento
       </div>
     </div>
   );

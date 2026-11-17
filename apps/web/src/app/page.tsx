@@ -18,7 +18,7 @@ export default function HomePage() {
             Gerencie, documente e teste suas <span className="text-blue-500">APIs</span> com precisão.
           </h1>
           <p className="text-zinc-400 text-base sm:text-lg">
-            APIHub é uma plataforma completa para catalogar endpoints, exportar especificações OpenAPI automáticas, executar testes protegidos contra SSRF e monitorar métricas em tempo real.
+            CloudAPI é uma plataforma completa para catalogar endpoints, exportar especificações OpenAPI automáticas, executar testes protegidos contra SSRF e monitorar métricas em tempo real.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
@@ -52,7 +52,7 @@ export default function HomePage() {
         {/* Feature Grid */}
         <section id="features" className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-bold">Funcionalidades do APIHub</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold">Funcionalidades do CloudAPI</h2>
             <p className="text-sm text-zinc-400">Desenvolvido com foco em segurança, padronização e custo zero.</p>
           </div>
 
@@ -123,7 +123,7 @@ export default function HomePage() {
       <footer className="border-t border-[var(--border)] py-10 bg-[var(--card)]/40 text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
-            <p>APIHub • Em Desenvolvimento • Acesso Antecipado</p>
+            <p>CloudAPI • Em Desenvolvimento • Acesso Antecipado</p>
             <p className="text-[11px] text-zinc-500">
               Suporte oficial: <a href="mailto:apihubsupport@gmail.com" className="text-zinc-400 hover:text-white underline">apihubsupport@gmail.com</a> • <a href="https://discord.gg/apihub" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Discord da Comunidade</a>
             </p>

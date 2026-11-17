@@ -44,7 +44,7 @@ export function DashboardPreview() {
         method: selectedMethod,
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'APIHub-Tester/1.0',
+          'User-Agent': 'CloudAPI-Tester/1.0',
         },
       });
       const durationMs = Math.round(performance.now() - startTime);

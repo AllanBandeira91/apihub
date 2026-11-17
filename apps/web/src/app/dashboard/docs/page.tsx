@@ -67,7 +67,7 @@ export default function DocsPage() {
   const openApiSpec = {
     openapi: '3.0.3',
     info: {
-      title: 'APIHub — Especificação OpenAPI',
+      title: 'CloudAPI — Especificação OpenAPI',
       version: '1.0.0',
       description: 'Documentação gerada dinamicamente a partir das rotas sincronizadas no Supabase.',
     },
@@ -87,7 +87,7 @@ export default function DocsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `apihub-openapi-spec.json`;
+    a.download = `cloudapi-openapi-spec.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

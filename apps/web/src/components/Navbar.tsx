@@ -20,7 +20,7 @@ export function Navbar() {
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
             λ
           </div>
-          <span className="font-bold text-xl tracking-tight">APIHub</span>
+          <span className="font-bold text-xl tracking-tight">CloudAPI</span>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Em Desenvolvimento
           </span>

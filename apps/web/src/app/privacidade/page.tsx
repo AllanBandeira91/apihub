@@ -31,7 +31,7 @@ export default function PrivacidadePage() {
               1. Visão Geral e Compromisso com a Privacidade
             </h2>
             <p>
-              O <strong>APIHub</strong> valoriza a segurança e a transparência no tratamento dos dados pessoais de seus desenvolvedores e usuários. Esta Política de Privacidade descreve com clareza quais dados coletamos, por que os coletamos, como os protegemos e como você pode exercer seus direitos fundamentais assegurados pela Lei Geral de Proteção de Dados Pessoais (LGPD).
+              O <strong>CloudAPI</strong> valoriza a segurança e a transparência no tratamento dos dados pessoais de seus desenvolvedores e usuários. Esta Política de Privacidade descreve com clareza quais dados coletamos, por que os coletamos, como os protegemos e como você pode exercer seus direitos fundamentais assegurados pela Lei Geral de Proteção de Dados Pessoais (LGPD).
             </p>
           </section>
 
@@ -73,7 +73,7 @@ export default function PrivacidadePage() {
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-white">4. Não Compartilhamento com Terceiros</h2>
             <p>
-              O APIHub <strong>não comercializa, não aluga e não compartilha</strong> dados pessoais com corretores de dados (data brokers) ou redes de publicidade direcionada. Informações só poderão ser compartilhadas caso haja obrigação legal ou ordem judicial expressa de autoridade competente.
+              O CloudAPI <strong>não comercializa, não aluga e não compartilha</strong> dados pessoais com corretores de dados (data brokers) ou redes de publicidade direcionada. Informações só poderão ser compartilhadas caso haja obrigação legal ou ordem judicial expressa de autoridade competente.
             </p>
           </section>
 
@@ -138,7 +138,7 @@ export default function PrivacidadePage() {
       </main>
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-zinc-500">
-        <p>APIHub • Proteção de Dados Pessoais & Conformidade LGPD • 2026</p>
+        <p>CloudAPI • Proteção de Dados Pessoais & Conformidade LGPD • 2026</p>
       </footer>
     </div>
   );

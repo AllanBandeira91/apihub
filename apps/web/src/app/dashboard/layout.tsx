@@ -164,7 +164,7 @@ export default function DashboardLayout({
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm flex-shrink-0">
                 λ
               </div>
-              <span className="font-bold text-lg tracking-tight">APIHub</span>
+              <span className="font-bold text-lg tracking-tight">CloudAPI</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800">
                 PRO
               </span>
@@ -342,7 +342,7 @@ export default function DashboardLayout({
         </main>
 
         <footer className="border-t border-[var(--border)] px-4 sm:px-8 py-4 text-[11px] text-zinc-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>APIHub • Conformidade com a Lei Geral de Proteção de Dados (LGPD)</span>
+          <span>CloudAPI • Conformidade com a Lei Geral de Proteção de Dados (LGPD)</span>
           <div className="flex items-center gap-4 text-zinc-400">
             <Link href="/privacidade" className="hover:underline">Privacidade</Link>
             <Link href="/termos" className="hover:underline">Termos</Link>

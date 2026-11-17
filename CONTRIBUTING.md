@@ -1,6 +1,6 @@
-# Guia de Contribuição para o APIHub
+# Guia de Contribuição para o CloudAPI
 
-Agradecemos o interesse em contribuir com o **APIHub**! Este é um projeto de código aberto com foco em qualidade, código legível, testes automatizados e custo zero de infraestrutura.
+Agradecemos o interesse em contribuir com o **CloudAPI**! Este é um projeto de código aberto com foco em qualidade, código legível, testes automatizados e custo zero de infraestrutura.
 
 ## Diretrizes de Desenvolvimento
 

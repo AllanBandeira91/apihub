@@ -110,7 +110,7 @@ export class MonitorsService {
       await testerService.validateUrlSecurity(monitor.url);
       const res = await fetch(monitor.url, {
         method: monitor.method,
-        headers: { 'User-Agent': 'APIHub-UptimeMonitor/1.0' },
+        headers: { 'User-Agent': 'CloudAPI-UptimeMonitor/1.0' },
         signal: controller.signal,
         redirect: 'manual',
       });

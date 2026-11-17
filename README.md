@@ -1,6 +1,6 @@
-# APIHub
+# CloudAPI
 
-> **APIHub** é uma plataforma moderna de gestão, catalogação, teste e documentação de APIs em desenvolvimento ativo. O código é aberto para colaboração e contribuição da comunidade.
+> **CloudAPI** é uma plataforma moderna de gestão, catalogação, teste e documentação de APIs em desenvolvimento ativo. O código é aberto para colaboração e contribuição da comunidade.
 
 [![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-amber.svg)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)

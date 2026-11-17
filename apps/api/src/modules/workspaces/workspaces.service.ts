@@ -168,7 +168,7 @@ export class WorkspacesService {
       await sendWorkspaceInviteEmail(validEmail, inviter.name, workspace.name, role, false);
       return {
         status: 'INVITE_SENT' as const,
-        message: `Convite enviado para ${validEmail}! Quando essa pessoa criar uma conta no APIHub, adicione-a novamente ou confirme o acesso.`,
+        message: `Convite enviado para ${validEmail}! Quando essa pessoa criar uma conta no CloudAPI, adicione-a novamente ou confirme o acesso.`,
       };
     }
 

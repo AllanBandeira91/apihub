@@ -77,7 +77,7 @@ export async function startServer() {
   const app = buildApp();
   try {
     const address = await app.listen({ port: env.PORT, host: env.HOST });
-    app.log.info(`APIHub Backend is running at ${address}`);
+    app.log.info(`CloudAPI Backend is running at ${address}`);
     startMonitorScheduler();
   } catch (err) {
     app.log.error(err);

@@ -52,7 +52,7 @@ export default function CanalTitularPage() {
             </div>
             <div>
               <p className="font-bold text-sm">Encarregado de Dados (DPO)</p>
-              <p className="text-xs text-zinc-400">Equipe de Segurança & Compliance do APIHub</p>
+              <p className="text-xs text-zinc-400">Equipe de Segurança & Compliance do CloudAPI</p>
             </div>
           </div>
           <a
@@ -175,7 +175,7 @@ export default function CanalTitularPage() {
       </main>
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-zinc-500">
-        <p>APIHub • Canal do Titular (LGPD) • Encarregado pelo Tratamento de Dados Pessoais</p>
+        <p>CloudAPI • Canal do Titular (LGPD) • Encarregado pelo Tratamento de Dados Pessoais</p>
       </footer>
     </div>
   );

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding APIHub database with initial demo data...');
+  console.log('Seeding CloudAPI database with initial demo data...');
 
   // 1. Create Demo User
   const salt = await bcrypt.genSalt(10);

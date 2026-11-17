@@ -24,7 +24,7 @@ const EnvSchema = z.object({
   SMTP_SECURE: z.string().transform(v => v !== 'false').default('true'),
   SMTP_USER: z.string().default('apihubsupport@gmail.com'),
   SMTP_PASS: z.string().default(''),
-  SMTP_FROM: z.string().default('APIHub <apihubsupport@gmail.com>'),
+  SMTP_FROM: z.string().default('CloudAPI <apihubsupport@gmail.com>'),
 });
 
 export const env = EnvSchema.parse(process.env);
