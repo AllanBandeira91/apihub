@@ -49,7 +49,7 @@ export function DashboardPreview() {
           ),
         });
       }
-    }, 600);
+    }, 100);
   };
 
   return (

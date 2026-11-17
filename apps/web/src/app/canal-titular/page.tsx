@@ -21,7 +21,7 @@ export default function CanalTitularPage() {
       setIsLoading(false);
       const randomProtocol = `LGPD-2026-${Math.floor(100000 + Math.random() * 900000)}`;
       setProtocolo(randomProtocol);
-    }, 700);
+    }, 100);
   };
 
   return (

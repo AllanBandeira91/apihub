@@ -21,7 +21,7 @@ export default function RegisterPage() {
       setIsLoading(false);
       localStorage.setItem('apihub-user', JSON.stringify({ email, name: name || 'Allan' }));
       router.push('/dashboard');
-    }, 700);
+    }, 100);
   };
 
   return (

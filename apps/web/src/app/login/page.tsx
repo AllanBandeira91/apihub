@@ -23,7 +23,7 @@ export default function LoginPage() {
       setIsLoading(false);
       localStorage.setItem('apihub-user', JSON.stringify({ email, name: email.split('@')[0] }));
       router.push('/dashboard');
-    }, 700);
+    }, 100);
   };
 
   return (

@@ -90,7 +90,7 @@ export default function TesterPage() {
           headers: headers.reduce((acc, h) => (h.key ? { ...acc, [h.key]: h.value } : acc), {}),
         },
       });
-    }, 550);
+    }, 80);
   };
 
   const handleCopy = () => {
