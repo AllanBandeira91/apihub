@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  PATCH
+  DELETE
+}
+
+model User {
+  id            String            @id @default(uuid())
+  email         String            @unique
+  name          String
+  passwordHash  String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  workspaces    Workspace[]       @relation("WorkspaceOwner")
+  memberships   WorkspaceMember[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String            @id @default(uuid())
+  name        String
+  slug        String            @unique
+  description String?
+  ownerId     String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  projects    Project[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        Role      @default(VIEWER)
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id          String          @id @default(uuid())
+  workspaceId String
+  name        String
+  slug        String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  apis        ApiDefinition[]
+  requestLogs RequestLog[]
+
+  @@unique([workspaceId, slug])
+  @@map("projects")
+}
+
+model ApiDefinition {
+  id          String     @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  baseUrl     String
+  version     String     @default("v1.0.0")
+  isPublic    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpoints   Endpoint[]
+
+  @@map("api_definitions")
+}
+
+model Endpoint {
+  id               String            @id @default(uuid())
+  apiId            String
+  method           HttpMethod
+  path             String
+  summary          String
+  description      String?
+  tags             String[]          @default([])
+  requestBody      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  api              ApiDefinition     @relation(fields: [apiId], references: [id], onDelete: Cascade)
+  parameters       Parameter[]
+  responseExamples ResponseExample[]
+  requestLogs      RequestLog[]
+
+  @@map("endpoints")
+}
+
+model Parameter {
+  id          String   @id @default(uuid())
+  endpointId  String
+  name        String
+  in          String   // query, path, header
+  required    Boolean  @default(false)
+  description String?
+  example     String?
+  endpoint    Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@map("parameters")
+}
+
+model ResponseExample {
+  id          String   @id @default(uuid())
+  endpointId  String
+  statusCode  Int
+  description String?
+  body        String?
+  endpoint    Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@map("response_examples")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  workspaceId String
+  name        String
+  keyPrefix   String    // e.g. "ah_live_" + first 6 chars for identification
+  keyHash     String    // SHA-256 hash of the complete secret key
+  permissions String[]  @default(["read", "write"])
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model RequestLog {
+  id          String    @id @default(uuid())
+  projectId   String
+  endpointId  String?
+  method      String
+  url         String
+  statusCode  Int
+  durationMs  Int
+  error       String?
+  createdAt   DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpoint    Endpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@map("request_logs")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@map("audit_logs")
+}
