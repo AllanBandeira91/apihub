@@ -28,6 +28,9 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm exec prisma generate --schema=prisma/schema.prisma
 
+      - name: Build Shared Package
+        run: pnpm --filter @apihub/shared build
+
       - name: Run Test Suite
         run: pnpm test
 
