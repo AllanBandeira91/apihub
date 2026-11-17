@@ -10,7 +10,9 @@ import {
   RefreshCw,
   Clock,
   Activity,
-  ExternalLink
+  ExternalLink,
+  Megaphone,
+  Wrench
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { ThemeToggle } from '../../../components/ThemeToggle';
@@ -138,6 +140,67 @@ export default function PublicStatusPage() {
                 <p className="text-[11px] text-zinc-400">Uptime Médio Global</p>
               </div>
             </div>
+
+            {/* Active & Recent Incidents / Maintenance */}
+            {Array.isArray(data.incidents) && data.incidents.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Megaphone className="w-3.5 h-3.5 text-amber-400" /> Comunicados, Incidentes &amp; Manutenções
+                </h2>
+                <div className="space-y-3">
+                  {data.incidents.map((inc: any) => {
+                    const isResolved = inc.status === 'RESOLVED';
+                    const isMaint = inc.type === 'MAINTENANCE' || inc.status === 'MAINTENANCE';
+                    return (
+                      <div
+                        key={inc.id}
+                        className={`rounded-xl border p-4 space-y-1.5 ${
+                          isResolved
+                            ? 'border-emerald-900/60 bg-emerald-950/15'
+                            : isMaint
+                            ? 'border-blue-800/70 bg-blue-950/20'
+                            : 'border-amber-800/80 bg-amber-950/20'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            {isMaint ? (
+                              <Wrench className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                            ) : isResolved ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                            )}
+                            <h3 className="font-bold text-sm text-white">{inc.title}</h3>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isResolved
+                                ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                : isMaint
+                                ? 'bg-blue-950/60 text-blue-300 border-blue-800'
+                                : 'bg-amber-950/60 text-amber-300 border-amber-800'
+                            }`}
+                          >
+                            {isResolved
+                              ? 'Resolvido'
+                              : isMaint
+                              ? 'Manutenção Programada'
+                              : inc.status === 'IDENTIFIED'
+                              ? 'Causa Identificada'
+                              : 'Investigando'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-300 leading-relaxed">{inc.message}</p>
+                        <p className="text-[10px] text-zinc-500">
+                          Atualizado em {new Date(inc.updatedAt || inc.createdAt).toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Services List */}
             <div className="space-y-4">

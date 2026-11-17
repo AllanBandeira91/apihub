@@ -92,6 +92,78 @@ export default function DocsPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPostman = () => {
+    const postmanCollection = {
+      info: {
+        name: 'CloudAPI — Coleção Exportada',
+        description: 'Coleção Postman v2.1 gerada automaticamente pelo CloudAPI.',
+        schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+      },
+      item: endpoints.map(ep => {
+        const full = resolveFullUrl(ep);
+        return {
+          name: ep.summary || `${ep.method} ${ep.path}`,
+          request: {
+            method: ep.method,
+            header: [{ key: 'Accept', value: 'application/json', type: 'text' }],
+            body: ep.requestBody
+              ? { mode: 'raw', raw: ep.requestBody, options: { raw: { language: 'json' } } }
+              : undefined,
+            url: {
+              raw: full,
+              path: ep.path.replace(/^\//, '').split('/'),
+            },
+            description: ep.description || undefined,
+          },
+        };
+      }),
+    };
+    const blob = new Blob([JSON.stringify(postmanCollection, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cloudapi-postman-v2.1.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadMarkdown = () => {
+    const lines: string[] = [
+      '# Documentação da API — CloudAPI',
+      '',
+      `Gerado automaticamente em ${new Date().toLocaleString('pt-BR')} com ${endpoints.length} endpoint(s).`,
+      '',
+    ];
+    for (const ep of endpoints) {
+      const full = resolveFullUrl(ep);
+      lines.push(`## \`${ep.method}\` ${ep.path}`);
+      lines.push('');
+      lines.push(`**Resumo:** ${ep.summary}  `);
+      lines.push(`**API:** ${ep.apiName}  `);
+      lines.push(`**URL:** \`${full}\``);
+      if (ep.description) {
+        lines.push('', ep.description);
+      }
+      if (ep.parameters && ep.parameters.length > 0) {
+        lines.push('', '### Parâmetros', '', '| Nome | Local | Obrigatório | Descrição |', '| --- | --- | --- | --- |');
+        for (const p of ep.parameters) {
+          lines.push(`| \`${p.name}\` | ${p.in} | ${p.required ? 'Sim' : 'Não'} | ${p.description || '-'} |`);
+        }
+      }
+      if (ep.requestBody) {
+        lines.push('', '### Corpo da Requisição', '', '```json', ep.requestBody, '```');
+      }
+      lines.push('', '### Exemplo cURL', '', '```bash', `curl -X ${ep.method} "${full}" -H "Accept: application/json"`, '```', '', '---', '');
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'API_DOCS.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const resolveFullUrl = (ep: EndpointItem) => {
     const base = ep.baseUrl ? ep.baseUrl.replace(/\/$/, '') : 'https://api.seusistema.com';
     return `${base}${ep.path}`;
@@ -129,7 +201,7 @@ export default function DocsPage() {
           </div>
 
           {endpoints.length > 0 && (
-            <>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleCopy}
                 className="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -142,9 +214,23 @@ export default function DocsPage() {
                 onClick={handleDownload}
                 className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
               >
-                <Download className="w-3.5 h-3.5" /> Baixar .json
+                <Download className="w-3.5 h-3.5" /> OpenAPI (.json)
               </button>
-            </>
+
+              <button
+                onClick={handleDownloadPostman}
+                className="px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" /> Postman v2.1
+              </button>
+
+              <button
+                onClick={handleDownloadMarkdown}
+                className="px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <Download className="w-3.5 h-3.5 text-blue-400" /> Markdown (.md)
+              </button>
+            </div>
           )}
         </div>
       </div>

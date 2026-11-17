@@ -47,8 +47,10 @@ model Workspace {
   owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     WorkspaceMember[]
   projects    Project[]
-  apiKeys     ApiKey[]
-  auditLogs   AuditLog[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
+  webhookCaptures WebhookCapture[]
+  statusIncidents StatusIncident[]
 
   @@map("workspaces")
 }
@@ -282,4 +284,35 @@ model TestCase {
 
   @@index([projectId])
   @@map("test_cases")
+}
+
+model WebhookCapture {
+  id          String    @id @default(uuid())
+  workspaceId String
+  method      String
+  path        String    @default("/")
+  headers     Json      @default("{}")
+  query       Json      @default("{}")
+  body        String?
+  ip          String?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("webhook_captures")
+}
+
+model StatusIncident {
+  id          String    @id @default(uuid())
+  workspaceId String
+  title       String
+  message     String
+  type        String    @default("INCIDENT") // INCIDENT | MAINTENANCE
+  status      String    @default("INVESTIGATING") // INVESTIGATING | IDENTIFIED | MAINTENANCE | RESOLVED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("status_incidents")
 }

@@ -16,6 +16,9 @@ import { monitorsRoutes } from './modules/monitors/monitors.routes';
 import { mockRoutes } from './modules/mock/mock.routes';
 import { runnerRoutes } from './modules/runner/runner.routes';
 import { externalRoutes } from './modules/external/external.routes';
+import { webhooksRoutes } from './modules/webhooks/webhooks.routes';
+import { incidentsRoutes } from './modules/incidents/incidents.routes';
+import { benchmarkRoutes } from './modules/benchmark/benchmark.routes';
 import { startMonitorScheduler } from './modules/monitors/monitors.service';
 
 export function buildApp() {
@@ -48,6 +51,19 @@ export function buildApp() {
     timeWindow: '1 minute',
   });
 
+  // HTTP Security Headers (anti-clickjacking, MIME sniffing, referrer leakage)
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    reply.removeHeader('X-Powered-By');
+    if (env.NODE_ENV === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    return payload;
+  });
+
   // Centralized Error Handler
   app.setErrorHandler(errorHandler);
 
@@ -56,7 +72,7 @@ export function buildApp() {
     return {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'apihub-api',
+      service: 'cloudapi-api',
       version: '1.0.0',
     };
   });
@@ -74,6 +90,9 @@ export function buildApp() {
     v1.register(mockRoutes);
     v1.register(runnerRoutes);
     v1.register(externalRoutes);
+    v1.register(webhooksRoutes);
+    v1.register(incidentsRoutes);
+    v1.register(benchmarkRoutes);
   }, { prefix: '/api/v1' });
 
   return app;

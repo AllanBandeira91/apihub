@@ -203,6 +203,49 @@ export interface TestExecutionResult {
   assertions: AssertionResultItem[];
 }
 
+export interface WebhookCaptureItem {
+  id: string;
+  workspaceId: string;
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  query: Record<string, any>;
+  body: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+
+export interface StatusIncidentItem {
+  id: string;
+  workspaceId: string;
+  title: string;
+  message: string;
+  type: 'INCIDENT' | 'MAINTENANCE';
+  status: 'INVESTIGATING' | 'IDENTIFIED' | 'MAINTENANCE' | 'RESOLVED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BenchmarkResult {
+  url: string;
+  method: string;
+  totalRequests: number;
+  concurrency: number;
+  totalDurationMs: number;
+  rps: number;
+  successCount: number;
+  errorCount: number;
+  successRate: number;
+  minMs: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+  maxMs: number;
+  statusCounts: Record<string, number>;
+  latencies: number[];
+}
+
 export function interpolateVariables(text: string, variables: EnvVariableItem[]): string {
   if (!text || !variables || variables.length === 0) return text;
   let result = text;
@@ -511,6 +554,12 @@ export const api = {
         body: JSON.stringify(spec),
       });
     },
+    async importPostman(projectId: string, collection: any) {
+      return request<{ api: any; importedCount: number }>(`/projects/${projectId}/import-postman`, {
+        method: 'POST',
+        body: JSON.stringify(collection),
+      });
+    },
   },
 
   environments: {
@@ -573,6 +622,7 @@ export const api = {
         avgUptime: number;
         updatedAt: string;
         monitors: UptimeMonitorItem[];
+        incidents: StatusIncidentItem[];
       }>(`/public/status/${encodeURIComponent(workspaceSlug)}`, { method: 'GET' }, true);
     },
     async checkNow(monitorId: string) {
@@ -697,6 +747,89 @@ export const api = {
         allPassed: boolean;
         results: TestExecutionResult[];
       }>(`/projects/${projectId}/test-cases/run-all`, { method: 'POST' });
+    },
+  },
+
+  webhooks: {
+    async list(workspaceId: string) {
+      const res = await request<{ captures: WebhookCaptureItem[] }>(`/workspaces/${workspaceId}/webhooks`, {
+        method: 'GET',
+      });
+      return res.captures;
+    },
+    async clearAll(workspaceId: string) {
+      return request<{ message: string }>(`/workspaces/${workspaceId}/webhooks`, { method: 'DELETE' });
+    },
+    async deleteOne(workspaceId: string, captureId: string) {
+      return request<{ message: string }>(`/workspaces/${workspaceId}/webhooks/${captureId}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  incidents: {
+    async list(workspaceId: string) {
+      const res = await request<{ incidents: StatusIncidentItem[] }>(`/workspaces/${workspaceId}/incidents`, {
+        method: 'GET',
+      });
+      return res.incidents;
+    },
+    async create(
+      workspaceId: string,
+      data: {
+        title: string;
+        message: string;
+        type: 'INCIDENT' | 'MAINTENANCE';
+        status?: 'INVESTIGATING' | 'IDENTIFIED' | 'MAINTENANCE' | 'RESOLVED';
+      }
+    ) {
+      const res = await request<{ incident: StatusIncidentItem }>(`/workspaces/${workspaceId}/incidents`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return res.incident;
+    },
+    async update(
+      workspaceId: string,
+      incidentId: string,
+      data: {
+        title?: string;
+        message?: string;
+        status?: 'INVESTIGATING' | 'IDENTIFIED' | 'MAINTENANCE' | 'RESOLVED';
+      }
+    ) {
+      const res = await request<{ incident: StatusIncidentItem }>(
+        `/workspaces/${workspaceId}/incidents/${incidentId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }
+      );
+      return res.incident;
+    },
+    async delete(workspaceId: string, incidentId: string) {
+      return request<{ message: string }>(`/workspaces/${workspaceId}/incidents/${incidentId}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  benchmark: {
+    async run(
+      projectId: string,
+      payload: {
+        url: string;
+        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        headers?: Record<string, string>;
+        body?: string | null;
+        totalRequests: number;
+        concurrency: number;
+      }
+    ) {
+      return request<BenchmarkResult>(`/projects/${projectId}/benchmark`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
     },
   },
 };

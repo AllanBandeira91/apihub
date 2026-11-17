@@ -20,9 +20,13 @@ import {
   BarChart3,
   Plus,
   Check,
-  FlaskConical
+  FlaskConical,
+  Webhook,
+  Gauge,
+  Search
 } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { CommandPalette } from '../../components/CommandPalette';
 import { api, getStoredUser, setActiveWorkspaceId, getActiveWorkspaceId } from '../../lib/api';
 
 interface WorkspaceOption {
@@ -51,6 +55,18 @@ export default function DashboardLayout({
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isCmdOpen, setIsCmdOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCmdOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     const stored = getStoredUser();
@@ -132,6 +148,8 @@ export default function DashboardLayout({
     { label: 'APIs & Endpoints', href: '/dashboard/apis', icon: FolderGit2 },
     { label: 'API Tester Seguro', href: '/dashboard/tester', icon: Terminal },
     { label: 'Bateria de Testes', href: '/dashboard/runner', icon: FlaskConical },
+    { label: 'Benchmark de Carga', href: '/dashboard/benchmark', icon: Gauge },
+    { label: 'Webhook Inspector', href: '/dashboard/webhooks', icon: Webhook },
     { label: 'Ambientes & Variáveis', href: '/dashboard/environments', icon: Sliders },
     { label: 'Monitoramento', href: '/dashboard/monitors', icon: Activity },
     { label: 'Métricas & Auditoria', href: '/dashboard/analytics', icon: BarChart3 },
@@ -303,6 +321,18 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsCmdOpen(true)}
+              className="hidden sm:flex items-center gap-2 text-xs text-zinc-400 hover:text-foreground transition border border-[var(--border)] bg-black/20 px-3 py-1.5 rounded-lg"
+              title="Busca rápida (Ctrl+K)"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Buscar...</span>
+              <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                Ctrl K
+              </kbd>
+            </button>
             <Link
               href="/"
               target="_blank"
@@ -352,6 +382,8 @@ export default function DashboardLayout({
           </div>
         </footer>
       </div>
+
+      <CommandPalette open={isCmdOpen} onClose={() => setIsCmdOpen(false)} />
 
       {/* Create Workspace Modal */}
       {isNewWsModalOpen && (

@@ -6,14 +6,18 @@ import { authenticate, requireWorkspaceRole } from '../../middleware/auth';
 export async function projectsRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authenticate);
 
-  app.get('/workspaces/:workspaceId/projects', async (request, reply) => {
-    const { workspaceId } = request.params as { workspaceId: string };
-    const projects = await projectsService.listByWorkspace(workspaceId);
-    return reply.send({
-      success: true,
-      data: { projects },
-    });
-  });
+  app.get(
+    '/workspaces/:workspaceId/projects',
+    { preHandler: [requireWorkspaceRole(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'])] },
+    async (request, reply) => {
+      const { workspaceId } = request.params as { workspaceId: string };
+      const projects = await projectsService.listByWorkspace(workspaceId);
+      return reply.send({
+        success: true,
+        data: { projects },
+      });
+    }
+  );
 
   app.post(
     '/workspaces/:workspaceId/projects',

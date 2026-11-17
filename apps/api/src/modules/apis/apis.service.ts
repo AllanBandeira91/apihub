@@ -218,6 +218,128 @@ export class ApisService {
     };
   }
 
+  async importPostman(projectId: string, userId: string, collection: any) {
+    const project = await this.ensureProjectAccess(projectId, userId);
+
+    if (!collection || typeof collection !== 'object' || !Array.isArray(collection.item)) {
+      throw new AppError(
+        'Coleção Postman inválida. Exporte no formato "Collection v2.1 (recommended)" contendo o array "item".',
+        400,
+        'INVALID_POSTMAN_COLLECTION'
+      );
+    }
+
+    const title = String(collection.info?.name || 'Coleção Postman').slice(0, 100);
+    const description = collection.info?.description ? String(collection.info.description).slice(0, 500) : null;
+
+    const flattened: {
+      method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+      path: string;
+      baseUrl: string;
+      summary: string;
+      description: string | null;
+      tag: string;
+      requestBody: string | null;
+    }[] = [];
+
+    const validMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
+    const walkItems = (items: any[], folderTag: string) => {
+      for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+        if (Array.isArray(item.item)) {
+          walkItems(item.item, String(item.name || folderTag).slice(0, 40));
+          continue;
+        }
+        const req = item.request;
+        if (!req) continue;
+        const method = String(req.method || 'GET').toUpperCase();
+        if (!validMethods.has(method)) continue;
+
+        let rawUrl = '';
+        if (typeof req.url === 'string') {
+          rawUrl = req.url;
+        } else if (req.url && typeof req.url === 'object') {
+          rawUrl = req.url.raw || '';
+        }
+
+        let baseUrl = 'https://api.exemplo.com';
+        let pathStr = '/';
+        try {
+          const parsed = new URL(rawUrl.replace(/\{\{[^}]+\}\}/g, 'https://api.exemplo.com'));
+          baseUrl = `${parsed.protocol}//${parsed.host}`;
+          pathStr = parsed.pathname || '/';
+        } catch {
+          if (req.url && Array.isArray(req.url.path)) {
+            pathStr = '/' + req.url.path.join('/');
+          } else if (rawUrl) {
+            const idx = rawUrl.indexOf('/');
+            pathStr = idx >= 0 ? rawUrl.slice(idx) : '/' + rawUrl;
+          }
+        }
+
+        const bodyRaw = req.body?.mode === 'raw' && req.body?.raw ? String(req.body.raw).slice(0, 10000) : null;
+
+        flattened.push({
+          method: method as any,
+          path: pathStr.startsWith('/') ? pathStr : '/' + pathStr,
+          baseUrl,
+          summary: String(item.name || `${method} ${pathStr}`).slice(0, 200),
+          description: req.description ? String(req.description).slice(0, 1000) : null,
+          tag: folderTag,
+          requestBody: bodyRaw,
+        });
+      }
+    };
+
+    walkItems(collection.item, 'Postman');
+
+    if (flattened.length === 0) {
+      throw new AppError('Nenhuma requisição HTTP válida encontrada na coleção Postman.', 400, 'NO_ENDPOINTS_FOUND');
+    }
+
+    let apiDef = await prisma.apiDefinition.findFirst({ where: { projectId, name: title } });
+    if (!apiDef) {
+      apiDef = await prisma.apiDefinition.create({
+        data: {
+          projectId,
+          name: title,
+          description,
+          baseUrl: flattened[0].baseUrl,
+          version: 'v1.0.0',
+        },
+      });
+    }
+
+    for (const ep of flattened.slice(0, 150)) {
+      await prisma.endpoint.create({
+        data: {
+          apiId: apiDef.id,
+          method: ep.method,
+          path: ep.path,
+          summary: ep.summary,
+          description: ep.description,
+          tags: [ep.tag],
+          requestBody: ep.requestBody,
+        },
+      });
+    }
+
+    await recordAuditLog({
+      workspaceId: project.workspaceId,
+      userId,
+      action: 'IMPORT_POSTMAN',
+      entity: 'ApiDefinition',
+      entityId: apiDef.id,
+      metadata: { title, importedCount: Math.min(flattened.length, 150) },
+    });
+
+    return {
+      api: apiDef,
+      importedCount: Math.min(flattened.length, 150),
+    };
+  }
+
   async setApiVisibility(apiId: string, userId: string, isPublic: boolean) {
     const apiDef = await prisma.apiDefinition.findUnique({
       where: { id: apiId },
@@ -394,7 +516,8 @@ export class ApisService {
     };
   }
 
-  async listByProject(projectId: string) {
+  async listByProject(projectId: string, userId: string) {
+    await this.ensureProjectAccess(projectId, userId);
     return prisma.apiDefinition.findMany({
       where: { projectId },
       include: {
@@ -406,7 +529,8 @@ export class ApisService {
     });
   }
 
-  async createApi(projectId: string, input: CreateApiDefinitionInput) {
+  async createApi(projectId: string, userId: string, input: CreateApiDefinitionInput) {
+    await this.ensureProjectAccess(projectId, userId);
     return prisma.apiDefinition.create({
       data: {
         projectId,
@@ -419,7 +543,7 @@ export class ApisService {
     });
   }
 
-  async getApiById(apiId: string) {
+  async getApiById(apiId: string, userId?: string) {
     const api = await prisma.apiDefinition.findUnique({
       where: { id: apiId },
       include: {
@@ -442,10 +566,20 @@ export class ApisService {
       throw new AppError('API Definition not found', 404, 'NOT_FOUND');
     }
 
+    if (userId) {
+      await this.ensureProjectAccess(api.projectId, userId);
+    } else if (!api.isPublic) {
+      throw new AppError('Acesso negado a esta especificação privada', 403, 'FORBIDDEN');
+    }
+
     return api;
   }
 
-  async updateApi(apiId: string, input: Partial<CreateApiDefinitionInput>) {
+  async updateApi(apiId: string, userId: string, input: Partial<CreateApiDefinitionInput>) {
+    const existing = await prisma.apiDefinition.findUnique({ where: { id: apiId } });
+    if (!existing) throw new AppError('API Definition not found', 404, 'NOT_FOUND');
+    await this.ensureProjectAccess(existing.projectId, userId);
+
     return prisma.apiDefinition.update({
       where: { id: apiId },
       data: {
@@ -458,14 +592,22 @@ export class ApisService {
     });
   }
 
-  async deleteApi(apiId: string) {
+  async deleteApi(apiId: string, userId: string) {
+    const existing = await prisma.apiDefinition.findUnique({ where: { id: apiId } });
+    if (!existing) throw new AppError('API Definition not found', 404, 'NOT_FOUND');
+    await this.ensureProjectAccess(existing.projectId, userId);
+
     await prisma.apiDefinition.delete({
       where: { id: apiId },
     });
     return { message: 'API definition deleted successfully' };
   }
 
-  async createEndpoint(apiId: string, input: CreateEndpointInput) {
+  async createEndpoint(apiId: string, userId: string, input: CreateEndpointInput) {
+    const existing = await prisma.apiDefinition.findUnique({ where: { id: apiId } });
+    if (!existing) throw new AppError('API Definition not found', 404, 'NOT_FOUND');
+    await this.ensureProjectAccess(existing.projectId, userId);
+
     return prisma.endpoint.create({
       data: {
         apiId,
@@ -499,7 +641,14 @@ export class ApisService {
     });
   }
 
-  async updateEndpoint(endpointId: string, input: Partial<CreateEndpointInput>) {
+  async updateEndpoint(endpointId: string, userId: string, input: Partial<CreateEndpointInput>) {
+    const existing = await prisma.endpoint.findUnique({
+      where: { id: endpointId },
+      include: { api: true },
+    });
+    if (!existing) throw new AppError('Endpoint não encontrado', 404, 'NOT_FOUND');
+    await this.ensureProjectAccess(existing.api.projectId, userId);
+
     return prisma.endpoint.update({
       where: { id: endpointId },
       data: {
@@ -513,15 +662,22 @@ export class ApisService {
     });
   }
 
-  async deleteEndpoint(endpointId: string) {
+  async deleteEndpoint(endpointId: string, userId: string) {
+    const existing = await prisma.endpoint.findUnique({
+      where: { id: endpointId },
+      include: { api: true },
+    });
+    if (!existing) throw new AppError('Endpoint não encontrado', 404, 'NOT_FOUND');
+    await this.ensureProjectAccess(existing.api.projectId, userId);
+
     await prisma.endpoint.delete({
       where: { id: endpointId },
     });
     return { message: 'Endpoint deleted successfully' };
   }
 
-  async generateOpenApiSpec(apiId: string) {
-    const api = await this.getApiById(apiId);
+  async generateOpenApiSpec(apiId: string, userId?: string) {
+    const api = await this.getApiById(apiId, userId);
 
     const paths: Record<string, Record<string, unknown>> = {};
 

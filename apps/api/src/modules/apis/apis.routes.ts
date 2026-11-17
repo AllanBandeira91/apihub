@@ -5,10 +5,17 @@ import { apisService } from './apis.service';
 import { authenticate } from '../../middleware/auth';
 
 export async function apisRoutes(app: FastifyInstance) {
-  // Public or token-optional OpenAPI export
+  // Public (if isPublic=true) or authenticated member OpenAPI export
   app.get('/apis/:apiId/openapi.json', async (request, reply) => {
     const { apiId } = request.params as { apiId: string };
-    const spec = await apisService.generateOpenApiSpec(apiId);
+    let userId: string | undefined;
+    try {
+      const payload = await request.jwtVerify<{ id: string; email: string }>();
+      userId = payload.id;
+    } catch {
+      // Unauthenticated caller: only allowed if api.isPublic === true
+    }
+    const spec = await apisService.generateOpenApiSpec(apiId, userId);
     return reply.send(spec);
   });
 
@@ -25,7 +32,7 @@ export async function apisRoutes(app: FastifyInstance) {
 
     protectedScope.get('/projects/:projectId/apis', async (request, reply) => {
       const { projectId } = request.params as { projectId: string };
-      const apis = await apisService.listByProject(projectId);
+      const apis = await apisService.listByProject(projectId, request.user!.id);
       return reply.send({
         success: true,
         data: { apis },
@@ -70,10 +77,19 @@ export async function apisRoutes(app: FastifyInstance) {
       });
     });
 
+    protectedScope.post('/projects/:projectId/import-postman', async (request, reply) => {
+      const { projectId } = request.params as { projectId: string };
+      const result = await apisService.importPostman(projectId, request.user!.id, request.body);
+      return reply.status(201).send({
+        success: true,
+        data: result,
+      });
+    });
+
     protectedScope.post('/projects/:projectId/apis', async (request, reply) => {
       const { projectId } = request.params as { projectId: string };
       const input = CreateApiDefinitionSchema.parse(request.body);
-      const api = await apisService.createApi(projectId, input);
+      const api = await apisService.createApi(projectId, request.user!.id, input);
       return reply.status(201).send({
         success: true,
         data: { api },
@@ -82,7 +98,7 @@ export async function apisRoutes(app: FastifyInstance) {
 
     protectedScope.get('/apis/:apiId', async (request, reply) => {
       const { apiId } = request.params as { apiId: string };
-      const api = await apisService.getApiById(apiId);
+      const api = await apisService.getApiById(apiId, request.user!.id);
       return reply.send({
         success: true,
         data: { api },
@@ -92,7 +108,7 @@ export async function apisRoutes(app: FastifyInstance) {
     protectedScope.patch('/apis/:apiId', async (request, reply) => {
       const { apiId } = request.params as { apiId: string };
       const input = CreateApiDefinitionSchema.partial().parse(request.body);
-      const api = await apisService.updateApi(apiId, input);
+      const api = await apisService.updateApi(apiId, request.user!.id, input);
       return reply.send({
         success: true,
         data: { api },
@@ -150,7 +166,7 @@ export async function apisRoutes(app: FastifyInstance) {
 
     protectedScope.delete('/apis/:apiId', async (request, reply) => {
       const { apiId } = request.params as { apiId: string };
-      const result = await apisService.deleteApi(apiId);
+      const result = await apisService.deleteApi(apiId, request.user!.id);
       return reply.send({
         success: true,
         data: result,
@@ -160,7 +176,7 @@ export async function apisRoutes(app: FastifyInstance) {
     protectedScope.post('/apis/:apiId/endpoints', async (request, reply) => {
       const { apiId } = request.params as { apiId: string };
       const input = CreateEndpointSchema.parse(request.body);
-      const endpoint = await apisService.createEndpoint(apiId, input);
+      const endpoint = await apisService.createEndpoint(apiId, request.user!.id, input);
       return reply.status(201).send({
         success: true,
         data: { endpoint },
@@ -170,7 +186,7 @@ export async function apisRoutes(app: FastifyInstance) {
     protectedScope.patch('/endpoints/:endpointId', async (request, reply) => {
       const { endpointId } = request.params as { endpointId: string };
       const input = CreateEndpointSchema.partial().parse(request.body);
-      const endpoint = await apisService.updateEndpoint(endpointId, input);
+      const endpoint = await apisService.updateEndpoint(endpointId, request.user!.id, input);
       return reply.send({
         success: true,
         data: { endpoint },
@@ -179,7 +195,7 @@ export async function apisRoutes(app: FastifyInstance) {
 
     protectedScope.delete('/endpoints/:endpointId', async (request, reply) => {
       const { endpointId } = request.params as { endpointId: string };
-      const result = await apisService.deleteEndpoint(endpointId);
+      const result = await apisService.deleteEndpoint(endpointId, request.user!.id);
       return reply.send({
         success: true,
         data: result,

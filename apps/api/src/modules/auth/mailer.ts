@@ -2,6 +2,19 @@ import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
 import { AppError } from '../../plugins/errorHandler';
 
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeHeader(str: string): string {
+  return String(str).replace(/[\r\n\0]/g, '').trim();
+}
+
 function createTransporter() {
   if (!env.SMTP_USER || !env.SMTP_PASS) {
     throw new AppError(
@@ -104,10 +117,15 @@ export async function sendWorkspaceInviteEmail(
   role: string,
   alreadyRegistered: boolean
 ): Promise<void> {
-  const sanitizedTo = to.replace(/[\r\n\0]/g, '').trim();
+  const sanitizedTo = sanitizeHeader(to);
+  const safeInviterHeader = sanitizeHeader(inviterName).slice(0, 80);
+  const safeWorkspaceHeader = sanitizeHeader(workspaceName).slice(0, 80);
+  const safeInviterHtml = escapeHtml(safeInviterHeader);
+  const safeWorkspaceHtml = escapeHtml(safeWorkspaceHeader);
+  const safeRoleHtml = escapeHtml(sanitizeHeader(role).slice(0, 30));
   const transporter = createTransporter();
 
-  const subject = `CloudAPI — ${inviterName} convidou você para o workspace "${workspaceName}"`;
+  const subject = `CloudAPI — ${safeInviterHeader} convidou você para o workspace "${safeWorkspaceHeader}"`;
   const actionText = alreadyRegistered
     ? 'Você já foi adicionado ao workspace com sucesso! Basta acessar sua conta no CloudAPI para colaborar.'
     : 'Crie sua conta gratuita no CloudAPI usando este mesmo e-mail para começar a colaborar com a equipe.';
@@ -121,7 +139,7 @@ export async function sendWorkspaceInviteEmail(
           </div>
           <h1 style="margin: 16px 0 8px; font-size: 20px; color: #ffffff;">Convite para Workspace</h1>
           <p style="margin: 0; font-size: 13px; color: #a1a1aa; line-height: 1.5;">
-            <strong>${inviterName}</strong> convidou você para o workspace <strong>${workspaceName}</strong> com permissão de <strong>${role}</strong>.
+            <strong>${safeInviterHtml}</strong> convidou você para o workspace <strong>${safeWorkspaceHtml}</strong> com permissão de <strong>${safeRoleHtml}</strong>.
           </p>
         </div>
 
@@ -143,7 +161,7 @@ export async function sendWorkspaceInviteEmail(
       from: env.SMTP_FROM,
       to: sanitizedTo,
       subject,
-      text: `${inviterName} convidou você para o workspace "${workspaceName}" (${role}). ${actionText}`,
+      text: `${safeInviterHeader} convidou você para o workspace "${safeWorkspaceHeader}" (${role}). ${actionText}`,
       html,
     });
   } catch {
@@ -160,7 +178,11 @@ export async function sendUptimeAlertEmail(params: {
   latencyMs: number;
   error?: string | null;
 }): Promise<void> {
-  const sanitizedTo = params.to.replace(/[\r\n\0]/g, '').trim();
+  const sanitizedTo = sanitizeHeader(params.to);
+  const safeNameHeader = sanitizeHeader(params.monitorName).slice(0, 100);
+  const safeNameHtml = escapeHtml(safeNameHeader);
+  const safeUrlHtml = escapeHtml(params.url);
+  const safeErrorHtml = params.error ? escapeHtml(String(params.error).slice(0, 300)) : null;
   let transporter;
   try {
     transporter = createTransporter();
@@ -170,8 +192,8 @@ export async function sendUptimeAlertEmail(params: {
 
   const isDown = params.status === 'DOWN';
   const subject = isDown
-    ? `[ALERTA CRÍTICO] CloudAPI — "${params.monitorName}" está FORA DO AR`
-    : `[RECUPERADO] CloudAPI — "${params.monitorName}" voltou ao normal`;
+    ? `[ALERTA CRÍTICO] CloudAPI — "${safeNameHeader}" está FORA DO AR`
+    : `[RECUPERADO] CloudAPI — "${safeNameHeader}" voltou ao normal`;
 
   const badgeColor = isDown ? '#dc2626' : '#16a34a';
   const badgeLabel = isDown ? 'OFFLINE / DOWN' : 'ONLINE / UP';
@@ -183,14 +205,14 @@ export async function sendUptimeAlertEmail(params: {
           <span style="display: inline-block; padding: 6px 14px; border-radius: 999px; background-color: ${badgeColor}; color: #ffffff; font-weight: bold; font-size: 12px; letter-spacing: 1px;">
             ${badgeLabel}
           </span>
-          <h1 style="margin: 16px 0 6px; font-size: 20px; color: #ffffff;">${params.monitorName}</h1>
-          <p style="margin: 0; font-size: 12px; font-family: monospace; color: #a1a1aa; word-break: break-all;">${params.url}</p>
+          <h1 style="margin: 16px 0 6px; font-size: 20px; color: #ffffff;">${safeNameHtml}</h1>
+          <p style="margin: 0; font-size: 12px; font-family: monospace; color: #a1a1aa; word-break: break-all;">${safeUrlHtml}</p>
         </div>
 
         <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; font-size: 13px; color: #d4d4d8;">
-          <p style="margin: 4px 0;"><strong>Status HTTP:</strong> ${params.statusCode || 'Sem resposta'}</p>
-          <p style="margin: 4px 0;"><strong>Latência:</strong> ${params.latencyMs} ms</p>
-          ${params.error ? `<p style="margin: 4px 0; color: #f87171;"><strong>Detalhe:</strong> ${params.error}</p>` : ''}
+          <p style="margin: 4px 0;"><strong>Status HTTP:</strong> ${Number(params.statusCode) || 'Sem resposta'}</p>
+          <p style="margin: 4px 0;"><strong>Latência:</strong> ${Number(params.latencyMs) || 0} ms</p>
+          ${safeErrorHtml ? `<p style="margin: 4px 0; color: #f87171;"><strong>Detalhe:</strong> ${safeErrorHtml}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Horário (UTC):</strong> ${new Date().toISOString()}</p>
         </div>
 
@@ -208,7 +230,7 @@ export async function sendUptimeAlertEmail(params: {
       from: env.SMTP_FROM,
       to: sanitizedTo,
       subject,
-      text: `${badgeLabel} - ${params.monitorName} (${params.url}) | Status: ${params.statusCode} | Latência: ${params.latencyMs}ms ${params.error ? '| Erro: ' + params.error : ''}`,
+      text: `${badgeLabel} - ${safeNameHeader} (${params.url}) | Status: ${params.statusCode} | Latência: ${params.latencyMs}ms ${params.error ? '| Erro: ' + params.error : ''}`,
       html,
     });
   } catch {

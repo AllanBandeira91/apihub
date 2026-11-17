@@ -12,14 +12,18 @@ const CreateApiKeySchema = z.object({
 export async function keysRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authenticate);
 
-  app.get('/workspaces/:workspaceId/keys', async (request, reply) => {
-    const { workspaceId } = request.params as { workspaceId: string };
-    const keys = await keysService.listByWorkspace(workspaceId);
-    return reply.send({
-      success: true,
-      data: { keys },
-    });
-  });
+  app.get(
+    '/workspaces/:workspaceId/keys',
+    { preHandler: [requireWorkspaceRole(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'])] },
+    async (request, reply) => {
+      const { workspaceId } = request.params as { workspaceId: string };
+      const keys = await keysService.listByWorkspace(workspaceId);
+      return reply.send({
+        success: true,
+        data: { keys },
+      });
+    }
+  );
 
   app.post(
     '/workspaces/:workspaceId/keys',

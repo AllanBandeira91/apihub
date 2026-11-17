@@ -371,12 +371,28 @@ export class MonitorsService {
         ? Number((formatted.reduce((acc, m) => acc + m.uptimePercent, 0) / formatted.length).toFixed(2))
         : 100;
 
+    const incidents = await prisma.statusIncident.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        message: true,
+        type: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     return {
       workspace,
       overallStatus,
       avgUptime,
       updatedAt: new Date().toISOString(),
       monitors: formatted,
+      incidents,
     };
   }
 

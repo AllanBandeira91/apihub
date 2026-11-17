@@ -19,17 +19,29 @@ import {
   Globe,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Megaphone,
+  Wrench
 } from 'lucide-react';
-import { api, UptimeMonitorItem, getStoredUser } from '../../../lib/api';
+import { api, UptimeMonitorItem, StatusIncidentItem, getStoredUser } from '../../../lib/api';
 
 export default function MonitorsPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [workspaceSlug, setWorkspaceSlug] = useState<string | null>(null);
   const [copiedStatusLink, setCopiedStatusLink] = useState(false);
   const [monitors, setMonitors] = useState<UptimeMonitorItem[]>([]);
+  const [incidents, setIncidents] = useState<StatusIncidentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+
+  // Incident modal state
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [creatingIncident, setCreatingIncident] = useState(false);
+  const [incTitle, setIncTitle] = useState('');
+  const [incMessage, setIncMessage] = useState('');
+  const [incType, setIncType] = useState<'INCIDENT' | 'MAINTENANCE'>('INCIDENT');
+  const [incStatus, setIncStatus] = useState<'INVESTIGATING' | 'IDENTIFIED' | 'MAINTENANCE' | 'RESOLVED'>('INVESTIGATING');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -52,9 +64,14 @@ export default function MonitorsPage() {
       .bootstrap()
       .then(async boot => {
         setProjectId(boot.project.id);
+        setWorkspaceId(boot.workspace.id);
         setWorkspaceSlug(boot.workspace.slug);
-        const list = await api.monitors.list(boot.project.id);
+        const [list, incList] = await Promise.all([
+          api.monitors.list(boot.project.id),
+          api.incidents.list(boot.workspace.id).catch(() => [] as StatusIncidentItem[]),
+        ]);
         setMonitors(list);
+        setIncidents(incList);
       })
       .catch(err => setError(err?.message || 'Erro ao carregar monitores.'))
       .finally(() => setIsLoading(false));
@@ -127,6 +144,54 @@ export default function MonitorsPage() {
     }
   };
 
+  const handleCreateIncident = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspaceId || !incTitle.trim() || !incMessage.trim()) return;
+    setCreatingIncident(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const created = await api.incidents.create(workspaceId, {
+        title: incTitle.trim(),
+        message: incMessage.trim(),
+        type: incType,
+        status: incType === 'MAINTENANCE' ? 'MAINTENANCE' : incStatus,
+      });
+      setIncidents(prev => [created, ...prev]);
+      setIsIncidentModalOpen(false);
+      setIncTitle('');
+      setIncMessage('');
+      setSuccess('Comunicado publicado na StatusPage (e notificado no Discord se configurado)!');
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao publicar comunicado.');
+    } finally {
+      setCreatingIncident(false);
+    }
+  };
+
+  const handleResolveIncident = async (inc: StatusIncidentItem) => {
+    if (!workspaceId) return;
+    setError(null);
+    try {
+      const updated = await api.incidents.update(workspaceId, inc.id, { status: 'RESOLVED' });
+      setIncidents(prev => prev.map(i => (i.id === inc.id ? updated : i)));
+      setSuccess(`Comunicado "${inc.title}" marcado como resolvido.`);
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao atualizar comunicado.');
+    }
+  };
+
+  const handleDeleteIncident = async (incidentId: string) => {
+    if (!workspaceId) return;
+    setError(null);
+    try {
+      await api.incidents.delete(workspaceId, incidentId);
+      setIncidents(prev => prev.filter(i => i.id !== incidentId));
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao remover comunicado.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
@@ -160,6 +225,12 @@ export default function MonitorsPage() {
               </Link>
             </>
           )}
+          <button
+            onClick={() => setIsIncidentModalOpen(true)}
+            className="border border-amber-700/70 bg-amber-950/30 hover:bg-amber-950/60 text-amber-300 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+          >
+            <Megaphone className="w-3.5 h-3.5" /> Publicar Incidente
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
@@ -318,6 +389,182 @@ export default function MonitorsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Incidents & Scheduled Maintenance Section */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-amber-400" /> Incidentes &amp; Manutenções da StatusPage
+            </h2>
+            <p className="text-xs text-zinc-400">
+              Publique comunicados de manutenção programada ou incidentes diretamente na sua página pública de status.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsIncidentModalOpen(true)}
+            className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 self-start sm:self-center"
+          >
+            <Plus className="w-3.5 h-3.5 text-amber-400" /> Novo Comunicado
+          </button>
+        </div>
+
+        {incidents.length === 0 ? (
+          <p className="text-xs text-zinc-500 py-4 text-center">
+            Nenhum incidente ou manutenção registrado neste workspace.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {incidents.map(inc => {
+              const isResolved = inc.status === 'RESOLVED';
+              const isMaint = inc.type === 'MAINTENANCE' || inc.status === 'MAINTENANCE';
+              return (
+                <div
+                  key={inc.id}
+                  className="p-4 rounded-xl border border-[var(--border)] bg-black/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isResolved
+                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                            : isMaint
+                            ? 'bg-blue-950/60 text-blue-300 border-blue-800'
+                            : 'bg-amber-950/60 text-amber-300 border-amber-800'
+                        }`}
+                      >
+                        {isResolved ? 'RESOLVIDO' : isMaint ? 'MANUTENÇÃO' : inc.status}
+                      </span>
+                      <h3 className="text-sm font-bold text-white truncate">{inc.title}</h3>
+                    </div>
+                    <p className="text-xs text-zinc-400">{inc.message}</p>
+                    <p className="text-[10px] text-zinc-500">
+                      Publicado em {new Date(inc.createdAt).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {!isResolved && (
+                      <button
+                        type="button"
+                        onClick={() => handleResolveIncident(inc)}
+                        className="px-3 py-1.5 rounded-lg border border-emerald-800 bg-emerald-950/30 hover:bg-emerald-950/60 text-emerald-300 text-xs font-semibold flex items-center gap-1 transition"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Marcar Resolvido
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteIncident(inc.id)}
+                      className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 transition"
+                      title="Excluir comunicado"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Create Incident Modal */}
+      {isIncidentModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                {incType === 'MAINTENANCE' ? (
+                  <Wrench className="w-5 h-5 text-blue-400" />
+                ) : (
+                  <Megaphone className="w-5 h-5 text-amber-400" />
+                )}
+                Publicar Comunicado na StatusPage
+              </h3>
+              <button onClick={() => setIsIncidentModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateIncident} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Tipo</label>
+                  <select
+                    value={incType}
+                    onChange={e => setIncType(e.target.value as any)}
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs"
+                  >
+                    <option value="INCIDENT">Incidente</option>
+                    <option value="MAINTENANCE">Manutenção Programada</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Status Inicial</label>
+                  <select
+                    value={incType === 'MAINTENANCE' ? 'MAINTENANCE' : incStatus}
+                    disabled={incType === 'MAINTENANCE'}
+                    onChange={e => setIncStatus(e.target.value as any)}
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs disabled:opacity-50"
+                  >
+                    <option value="INVESTIGATING">Investigando</option>
+                    <option value="IDENTIFIED">Causa Identificada</option>
+                    <option value="MAINTENANCE">Em Manutenção</option>
+                    <option value="RESOLVED">Resolvido</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Título do Comunicado</label>
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  value={incTitle}
+                  onChange={e => setIncTitle(e.target.value)}
+                  placeholder="Ex: Manutenção programada no banco de dados"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Detalhes / Impacto</label>
+                <textarea
+                  rows={3}
+                  required
+                  minLength={3}
+                  value={incMessage}
+                  onChange={e => setIncMessage(e.target.value)}
+                  placeholder="Explique o que está acontecendo e a previsão de normalização..."
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-3 text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => setIsIncidentModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingIncident}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-semibold"
+                >
+                  {creatingIncident ? 'Publicando...' : 'Publicar Comunicado'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

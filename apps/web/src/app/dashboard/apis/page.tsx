@@ -62,8 +62,9 @@ export default function ApisPage() {
   >([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Import OpenAPI / Swagger JSON Modal
+  // Import OpenAPI / Swagger / Postman JSON Modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<'openapi' | 'postman'>('openapi');
   const [importJsonText, setImportJsonText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
@@ -236,13 +237,21 @@ export default function ApisPage() {
         throw new Error('O conteúdo informado não é um JSON válido.');
       }
 
-      const res = await api.endpoints.importOpenApi(projectId, parsedSpec);
+      const res =
+        importFormat === 'postman'
+          ? await api.endpoints.importPostman(projectId, parsedSpec)
+          : await api.endpoints.importOpenApi(projectId, parsedSpec);
       await loadData();
       setIsImportModalOpen(false);
       setImportJsonText('');
       setSuccessMsg(`${res.importedCount} endpoint(s) importado(s) para "${res.api.name}"!`);
     } catch (err: any) {
-      setError(err?.message || 'Falha ao importar especificação OpenAPI.');
+      setError(
+        err?.message ||
+          (importFormat === 'postman'
+            ? 'Falha ao importar coleção Postman v2.1.'
+            : 'Falha ao importar especificação OpenAPI.')
+      );
     } finally {
       setIsImporting(false);
     }
@@ -282,7 +291,7 @@ export default function ApisPage() {
             }}
             className="border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
           >
-            <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger
+            <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger / Postman
           </button>
 
           <button
@@ -844,16 +853,37 @@ export default function ApisPage() {
         </div>
       )}
 
-      {/* Import OpenAPI / Swagger JSON Modal */}
+      {/* Import OpenAPI / Swagger / Postman JSON Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-2xl w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <Upload className="w-5 h-5 text-emerald-400" /> Importar OpenAPI 3.0 / Swagger 2.0 (JSON)
+                <Upload className="w-5 h-5 text-emerald-400" /> Importar Coleção / Especificação JSON
               </h3>
               <button onClick={() => setIsImportModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 p-1 rounded-xl bg-black/40 border border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setImportFormat('openapi')}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                  importFormat === 'openapi' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                OpenAPI 3.0 / Swagger 2.0
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportFormat('postman')}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                  importFormat === 'postman' ? 'bg-orange-600 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Postman Collection v2.1
               </button>
             </div>
 
@@ -871,13 +901,21 @@ export default function ApisPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Conteúdo JSON OpenAPI / Swagger</label>
+                <label className="text-xs font-semibold text-zinc-300">
+                  {importFormat === 'postman'
+                    ? 'Conteúdo JSON da Coleção Postman v2.1'
+                    : 'Conteúdo JSON OpenAPI / Swagger'}
+                </label>
                 <textarea
                   rows={10}
                   required
                   value={importJsonText}
                   onChange={e => setImportJsonText(e.target.value)}
-                  placeholder='{"openapi": "3.0.3", "info": {"title": "Minha API", "version": "1.0.0"}, "paths": { ... }}'
+                  placeholder={
+                    importFormat === 'postman'
+                      ? '{"info": {"name": "Minha Coleção", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"}, "item": [ ... ]}'
+                      : '{"openapi": "3.0.3", "info": {"title": "Minha API", "version": "1.0.0"}, "paths": { ... }}'
+                  }
                   className="w-full bg-black/60 border border-[var(--border)] rounded-lg p-3 text-xs font-mono focus:outline-none focus:border-emerald-500"
                 />
               </div>
