@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Download, Code, Check, Copy, ExternalLink, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface DocEndpoint {
@@ -18,7 +18,7 @@ export default function DocsPage() {
   const [copied, setCopied] = useState(false);
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>('GET-/v1/users');
 
-  const docEndpoints: DocEndpoint[] = [
+  const initialDocs: DocEndpoint[] = [
     {
       method: 'GET',
       path: '/v1/users',
@@ -60,14 +60,6 @@ export default function DocsPage() {
             success: true,
             data: { id: 'usr_9912', name: 'Novo Desenvolvedor', email: 'dev@apihub.dev' }
           }
-        },
-        {
-          code: 409,
-          description: 'E-mail já existente no banco de dados',
-          example: {
-            success: false,
-            error: { code: 'EMAIL_ALREADY_EXISTS', message: 'An account with this email already exists' }
-          }
         }
       ]
     },
@@ -92,6 +84,40 @@ export default function DocsPage() {
       ]
     }
   ];
+
+  const [docEndpoints, setDocEndpoints] = useState<DocEndpoint[]>(initialDocs);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('apihub-endpoints');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const mapped: DocEndpoint[] = parsed.map((ep: any) => ({
+            method: ep.method,
+            path: ep.path,
+            summary: ep.summary || `Endpoint ${ep.path}`,
+            description: `Documentação do endpoint ${ep.method} ${ep.path}`,
+            tag: ep.tags?.[0] || 'Geral',
+            parameters: [
+              { name: 'Authorization', in: 'header', required: false, description: 'Bearer token ou API Key' }
+            ],
+            responses: [
+              {
+                code: ep.method === 'POST' ? 201 : 200,
+                description: 'Operação executada com sucesso',
+                example: { success: true, message: `Resposta do endpoint ${ep.path}` }
+              }
+            ]
+          }));
+          setDocEndpoints(mapped);
+          if (mapped[0]) {
+            setExpandedEndpoint(`${mapped[0].method}-${mapped[0].path}`);
+          }
+        }
+      } catch {}
+    }
+  }, []);
 
   const openApiSpec = {
     openapi: '3.0.3',

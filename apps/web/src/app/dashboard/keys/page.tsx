@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Key, Plus, Shield, Trash2, Copy, Check, AlertTriangle, X } from 'lucide-react';
 
 interface ApiKeyItem {
@@ -13,7 +13,7 @@ interface ApiKeyItem {
 }
 
 export default function KeysPage() {
-  const [keys, setKeys] = useState<ApiKeyItem[]>([
+  const defaultKeys: ApiKeyItem[] = [
     {
       id: '1',
       name: 'CI/CD GitHub Actions Pipeline',
@@ -30,7 +30,23 @@ export default function KeysPage() {
       createdAt: '12/11/2026',
       revokedAt: '14/11/2026',
     },
-  ]);
+  ];
+
+  const [keys, setKeys] = useState<ApiKeyItem[]>(defaultKeys);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('apihub-keys');
+    if (saved) {
+      try {
+        setKeys(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  const saveKeys = (items: ApiKeyItem[]) => {
+    setKeys(items);
+    localStorage.setItem('apihub-keys', JSON.stringify(items));
+  };
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
@@ -55,14 +71,14 @@ export default function KeysPage() {
       revokedAt: null,
     };
 
-    setKeys([newKey, ...keys]);
+    saveKeys([newKey, ...keys]);
     setIsCreateModalOpen(false);
     setNewKeyName('');
     setCreatedSecret(fullSecret);
   };
 
   const handleRevoke = (id: string) => {
-    setKeys(keys.map(k => (k.id === id ? { ...k, revokedAt: 'Hoje' } : k)));
+    saveKeys(keys.map(k => (k.id === id ? { ...k, revokedAt: 'Hoje' } : k)));
   };
 
   const handleCopySecret = () => {

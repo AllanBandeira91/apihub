@@ -8,9 +8,10 @@ export interface AuthenticatedUser {
   email: string;
 }
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: AuthenticatedUser;
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: AuthenticatedUser;
+    user: AuthenticatedUser;
   }
 }
 

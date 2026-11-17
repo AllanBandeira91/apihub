@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FolderGit2,
@@ -26,13 +26,29 @@ interface EndpointItem {
 }
 
 export default function ApisPage() {
-  const [endpoints, setEndpoints] = useState<EndpointItem[]>([
+  const defaultEndpoints: EndpointItem[] = [
     { id: '1', method: 'GET', path: '/v1/users', summary: 'Lista todos os usuários com paginação', tags: ['Usuários'], apiName: 'Core Auth API', parametersCount: 2 },
     { id: '2', method: 'POST', path: '/v1/users', summary: 'Cadastra um novo usuário no sistema', tags: ['Usuários'], apiName: 'Core Auth API', parametersCount: 1 },
     { id: '3', method: 'GET', path: '/v1/products', summary: 'Busca catálogo de produtos ativos', tags: ['Catálogo'], apiName: 'Storefront API', parametersCount: 3 },
     { id: '4', method: 'POST', path: '/v1/orders', summary: 'Gera um pedido com itens no carrinho', tags: ['Vendas'], apiName: 'Storefront API', parametersCount: 1 },
     { id: '5', method: 'DELETE', path: '/v1/keys/:keyId', summary: 'Revoga chave de API permanentemente', tags: ['Segurança'], apiName: 'Core Auth API', parametersCount: 1 },
-  ]);
+  ];
+
+  const [endpoints, setEndpoints] = useState<EndpointItem[]>(defaultEndpoints);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('apihub-endpoints');
+    if (saved) {
+      try {
+        setEndpoints(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  const saveEndpoints = (items: EndpointItem[]) => {
+    setEndpoints(items);
+    localStorage.setItem('apihub-endpoints', JSON.stringify(items));
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('ALL');
@@ -60,7 +76,7 @@ export default function ApisPage() {
       parametersCount: 0,
     };
 
-    setEndpoints([newEp, ...endpoints]);
+    saveEndpoints([newEp, ...endpoints]);
     setIsModalOpen(false);
     setNewPath('');
     setNewSummary('');
@@ -68,7 +84,7 @@ export default function ApisPage() {
   };
 
   const handleDelete = (id: string) => {
-    setEndpoints(endpoints.filter(e => e.id !== id));
+    saveEndpoints(endpoints.filter(e => e.id !== id));
   };
 
   const filteredEndpoints = endpoints.filter(ep => {

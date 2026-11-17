@@ -20,12 +20,10 @@ jobs:
           node-version: 22
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
+        run: npm install -g pnpm
 
       - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --config.ignore-scripts=false
 
       - name: Generate Prisma Client
         run: pnpm exec prisma generate --schema=prisma/schema.prisma

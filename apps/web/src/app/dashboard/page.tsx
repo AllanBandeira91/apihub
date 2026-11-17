@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   FolderGit2,
@@ -15,11 +16,41 @@ import {
 } from 'lucide-react';
 
 export default function DashboardHomePage() {
+  const [endpointsCount, setEndpointsCount] = useState(5);
+  const [testCount, setTestCount] = useState(0);
+  const [avgLatency, setAvgLatency] = useState(85);
+  const [recentTests, setRecentTests] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Endpoints count
+    const savedEp = localStorage.getItem('apihub-endpoints');
+    if (savedEp) {
+      try {
+        const epList = JSON.parse(savedEp);
+        if (Array.isArray(epList)) setEndpointsCount(epList.length);
+      } catch {}
+    }
+
+    // History count & latency
+    const savedHist = localStorage.getItem('apihub-history');
+    if (savedHist) {
+      try {
+        const histList = JSON.parse(savedHist);
+        if (Array.isArray(histList) && histList.length > 0) {
+          setTestCount(histList.length);
+          const totalMs = histList.reduce((acc: number, item: any) => acc + (item.durationMs || 0), 0);
+          setAvgLatency(Math.round(totalMs / histList.length));
+          setRecentTests(histList.slice(0, 4));
+        }
+      } catch {}
+    }
+  }, []);
+
   const stats = [
-    { label: 'APIs Registradas', value: '4', change: '+2 este mês', icon: FolderGit2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Endpoints Mapeados', value: '18', change: '100% documentados', icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Testes Executados', value: '142', change: '98.5% sucesso', icon: Activity, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: 'Latência Média', value: '115 ms', change: '-12ms que semana passada', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+    { label: 'APIs Registradas', value: '3', change: 'Workspaces ativos', icon: FolderGit2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Endpoints Mapeados', value: String(endpointsCount), change: '100% documentados', icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Testes Executados', value: String(testCount), change: testCount > 0 ? 'Métricas em tempo real' : 'Aguardando testes', icon: Activity, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Latência Média', value: `${avgLatency} ms`, change: 'Tempo de resposta médio', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ];
 
   const recentEndpoints = [
