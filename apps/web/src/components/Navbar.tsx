@@ -13,8 +13,8 @@ export function Navbar() {
             λ
           </div>
           <span className="font-bold text-xl tracking-tight">APIHub</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800">
-            v1.0 (Open-Source)
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Em Desenvolvimento
           </span>
         </div>
 
@@ -26,13 +26,15 @@ export function Navbar() {
             <Terminal className="w-4 h-4" /> API Tester
           </a>
           <a href="#openapi" className="hover:text-foreground transition flex items-center gap-1.5">
-            <BookOpen className="w-4 h-4" /> Documentação OpenAPI
+            <BookOpen className="w-4 h-4" /> OpenAPI
           </a>
-          <a href="#keys" className="hover:text-foreground transition flex items-center gap-1.5">
-            <Key className="w-4 h-4" /> API Keys
-          </a>
-          <a href="#metrics" className="hover:text-foreground transition flex items-center gap-1.5">
-            <Activity className="w-4 h-4" /> Métricas
+          <a
+            href="https://discord.gg"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-[#5865F2] transition flex items-center gap-1.5 text-zinc-300 font-semibold"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#5865F2]" /> Discord
           </a>
         </nav>
 

@@ -100,11 +100,13 @@ export default function TesterPage() {
       return;
     }
 
-    // 2. Prepare real headers
+    // 2. Prepare real headers (sanitize CRLF & prevent header injection)
     const headerObj: Record<string, string> = {};
     headers.forEach(h => {
-      if (h.key.trim()) {
-        headerObj[h.key.trim()] = h.value.trim();
+      const cleanKey = h.key.replace(/[\r\n\0]/g, '').trim();
+      const cleanVal = h.value.replace(/[\r\n\0]/g, '').trim();
+      if (cleanKey) {
+        headerObj[cleanKey] = cleanVal;
       }
     });
 

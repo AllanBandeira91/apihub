@@ -127,10 +127,10 @@ export default function PrivacidadePage() {
                 Acessar Formulário do Titular
               </Link>
               <a
-                href="mailto:dpo@apihub.dev"
+                href="mailto:apihubsupport@gmail.com"
                 className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-4 py-2 rounded-lg text-xs font-semibold text-zinc-300 transition"
               >
-                E-mail: dpo@apihub.dev
+                E-mail: apihubsupport@gmail.com
               </a>
             </div>
           </section>

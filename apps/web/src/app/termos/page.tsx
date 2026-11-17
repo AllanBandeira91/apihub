@@ -21,7 +21,7 @@ export default function TermosPage() {
             </span>
           </div>
           <p className="text-xs text-zinc-400">
-            Última atualização: 17 de Novembro de 2026 • Termos reguladores do serviço open-source APIHub
+            Última atualização: 17 de Novembro de 2026 • Termos reguladores do serviço APIHub (Em Desenvolvimento • Acesso Antecipado)
           </p>
         </div>
 
@@ -68,9 +68,9 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-bold text-white">5. Propriedade Intelectual e Licença MIT</h2>
+            <h2 className="text-xl font-bold text-white">5. Propriedade Intelectual e Modelo de Contribuição</h2>
             <p>
-              O código-fonte do APIHub é distribuído sob a licença de código aberto <strong>MIT</strong>, conferindo a você ampla liberdade de estudo, cópia, alteração e contribuição, nos termos descritos no arquivo LICENSE do repositório oficial.
+              O APIHub é um software em desenvolvimento ativo com modelo de código disponível para acesso antecipado e colaboração com a comunidade (não é open-source irrestrito). Desenvolvedores e parceiros podem acessar a plataforma em desenvolvimento, reportar melhorias e submeter contribuições técnicas sujeitas à revisão e incorporação pela equipe oficial do APIHub.
             </p>
           </section>
 
@@ -82,9 +82,9 @@ export default function TermosPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-xl font-bold text-white">7. Contato e Dúvidas</h2>
+            <h2 className="text-xl font-bold text-white">7. Contato, Suporte e Comunidade</h2>
             <p>
-              Para dúvidas sobre estes Termos de Uso ou reporte de vulnerabilidades de segurança, entre em contato através de: <a href="mailto:contato@apihub.dev" className="text-blue-400 underline">contato@apihub.dev</a>.
+              Para dúvidas sobre estes Termos de Uso, colaborações ou reporte de vulnerabilidades de segurança, entre em contato através do e-mail oficial: <a href="mailto:apihubsupport@gmail.com" className="text-blue-400 underline">apihubsupport@gmail.com</a> ou junte-se à nossa comunidade no <a href="https://discord.gg/apihub" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline">Discord Oficial</a>.
             </p>
           </section>
         </div>

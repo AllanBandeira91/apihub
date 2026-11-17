@@ -56,10 +56,10 @@ export default function CanalTitularPage() {
             </div>
           </div>
           <a
-            href="mailto:dpo@apihub.dev"
+            href="mailto:apihubsupport@gmail.com"
             className="flex items-center gap-1.5 text-xs text-blue-400 hover:underline border border-[var(--border)] px-3 py-1.5 rounded-lg bg-black/30"
           >
-            <Mail className="w-3.5 h-3.5" /> dpo@apihub.dev
+            <Mail className="w-3.5 h-3.5" /> apihubsupport@gmail.com
           </a>
         </div>
 

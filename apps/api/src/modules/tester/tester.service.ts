@@ -91,12 +91,16 @@ export class TesterService {
     // 2. Validate URL against SSRF
     await this.validateUrlSecurity(finalUrl);
 
-    // 3. Prepare headers (strip forbidden/internal headers)
+    // 3. Prepare headers (strip forbidden/internal headers & prevent CRLF / SSL Header injection)
     const sanitizedHeaders: Record<string, string> = {};
     for (const [key, val] of Object.entries(input.headers || {})) {
-      const lowerKey = key.toLowerCase();
-      if (!['host', 'connection', 'content-length'].includes(lowerKey)) {
-        sanitizedHeaders[key] = val;
+      // Clean CRLF characters to prevent HTTP request splitting / header injection
+      const cleanKey = key.replace(/[\r\n\0]/g, '').trim();
+      const cleanVal = String(val).replace(/[\r\n\0]/g, '').trim();
+
+      const lowerKey = cleanKey.toLowerCase();
+      if (cleanKey && !['host', 'connection', 'content-length', 'transfer-encoding'].includes(lowerKey)) {
+        sanitizedHeaders[cleanKey] = cleanVal;
       }
     }
 

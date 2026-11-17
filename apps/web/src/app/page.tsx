@@ -11,8 +11,8 @@ export default function HomePage() {
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
         {/* Hero Section */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> 100% Gratuito & Open-Source
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Em Desenvolvimento • Acesso Antecipado
           </div>
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
             Gerencie, documente e teste suas <span className="text-blue-500">APIs</span> com precisão.
@@ -27,6 +27,14 @@ export default function HomePage() {
             >
               Abrir Dashboard
             </Link>
+            <a
+              href="https://discord.gg"
+              target="_blank"
+              rel="noreferrer"
+              className="bg-[#5865F2] hover:bg-[#4752c4] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-md shadow-[#5865F2]/20 flex items-center gap-2"
+            >
+              Comunidade Discord
+            </a>
             <a
               href="#tester"
               className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-6 py-2.5 rounded-lg text-sm font-semibold transition"
@@ -114,7 +122,12 @@ export default function HomePage() {
 
       <footer className="border-t border-[var(--border)] py-10 bg-[var(--card)]/40 text-xs text-zinc-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>APIHub • Desenvolvido sob licença MIT • Custo zero & código aberto</p>
+          <div className="space-y-1 text-center sm:text-left">
+            <p>APIHub • Em Desenvolvimento • Acesso Antecipado</p>
+            <p className="text-[11px] text-zinc-500">
+              Suporte oficial: <a href="mailto:apihubsupport@gmail.com" className="text-zinc-400 hover:text-white underline">apihubsupport@gmail.com</a> • <a href="https://discord.gg/apihub" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Discord da Comunidade</a>
+            </p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-6 text-zinc-400 font-medium">
             <Link href="/privacidade" className="hover:text-foreground transition">
