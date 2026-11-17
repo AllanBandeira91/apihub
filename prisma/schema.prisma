@@ -189,3 +189,15 @@ model AuditLog {
   @@index([workspaceId, createdAt])
   @@map("audit_logs")
 }
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  type      String   @default("REGISTER") // REGISTER or PASSWORD_RESET
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+  @@map("email_verifications")
+}

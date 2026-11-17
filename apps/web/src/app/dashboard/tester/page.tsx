@@ -89,6 +89,12 @@ export default function TesterPage() {
     setErrorMessage(null);
     setResponse(null);
 
+    if (!url.trim()) {
+      setIsLoading(false);
+      setErrorMessage('Por favor, informe a URL do endpoint que deseja testar.');
+      return;
+    }
+
     // 1. SSRF Client-side Security Validation
     const isPrivateOrInternal =
       url.includes('localhost') ||

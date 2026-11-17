@@ -5,7 +5,7 @@ import { Play, ShieldAlert, CheckCircle2, Clock, Globe, ArrowRight } from 'lucid
 
 export function DashboardPreview() {
   const [selectedMethod, setSelectedMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>('GET');
-  const [testUrl, setTestUrl] = useState('https://httpbin.org/get');
+  const [testUrl, setTestUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [testResponse, setTestResponse] = useState<any>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -14,6 +14,12 @@ export function DashboardPreview() {
     setIsLoading(true);
     setTestError(null);
     setTestResponse(null);
+
+    if (!testUrl.trim()) {
+      setIsLoading(false);
+      setTestError('Por favor, informe a URL da API que deseja testar.');
+      return;
+    }
 
     // Check SSRF client-side instant check
     const isLocal =

@@ -67,6 +67,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   auth: {
+    async sendVerification(email: string, type: 'REGISTER' | 'PASSWORD_RESET' = 'REGISTER') {
+      return request<{ email: string; type: string; previewCode?: string; expiresInMinutes: number }>('/auth/send-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email, type }),
+      });
+    },
+
+    async registerWithCode(data: { name: string; email: string; password: string; code: string }) {
+      const res = await request<{ user: any; token: string; defaultWorkspace: any }>('/auth/register-with-code', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      if (res.token) setStoredToken(res.token);
+      if (res.user) setStoredUser(res.user);
+      return res;
+    },
+
+    async resetPassword(data: { email: string; code: string; newPassword: string }) {
+      return request<{ message: string }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
     async register(data: { name: string; email: string; password: string }) {
       const res = await request<{ user: any; token: string; defaultWorkspace: any }>('/auth/register', {
         method: 'POST',

@@ -4,6 +4,7 @@ const prisma = new PrismaClient();
 
 async function clean() {
   console.log('Cleaning database: removing all test and demo data...');
+  await prisma.emailVerification.deleteMany({});
   await prisma.auditLog.deleteMany({});
   await prisma.requestLog.deleteMany({});
   await prisma.apiKey.deleteMany({});

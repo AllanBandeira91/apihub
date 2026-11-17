@@ -75,7 +75,9 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-zinc-300">Senha</label>
-              <a href="#" className="text-xs text-blue-400 hover:underline">Esqueceu a senha?</a>
+              <Link href="/recuperar-senha" className="text-xs text-blue-400 hover:underline">
+                Esqueceu a senha?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3 top-3 text-zinc-500" />

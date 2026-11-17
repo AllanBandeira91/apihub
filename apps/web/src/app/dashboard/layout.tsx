@@ -40,7 +40,8 @@ export default function DashboardLayout({
     }
 
     setUser(stored);
-    setCurrentWorkspace(`${stored.name || 'Meu'} Workspace`);
+    const firstName = (stored.name || '').trim().split(/\s+/)[0] || 'Meu';
+    setCurrentWorkspace(`${firstName}'s Workspace`);
     setIsCheckingAuth(false);
 
     // Refresh user profile asynchronously from backend
@@ -98,14 +99,16 @@ export default function DashboardLayout({
             </Link>
 
             <div className="pt-2">
-              <div className="p-2.5 rounded-xl border border-[var(--border)] bg-black/30 flex items-center justify-between text-xs hover:border-zinc-700 transition">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-purple-600/30 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold text-xs">
+              <div className="p-2.5 rounded-xl border border-[var(--border)] bg-black/30 flex items-center justify-between text-xs hover:border-zinc-700 transition overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                  <div className="w-6 h-6 rounded bg-purple-600/30 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold text-xs flex-shrink-0">
                     {initialLetter}
                   </div>
-                  <div className="truncate">
-                    <p className="font-semibold text-zinc-200 truncate">{currentWorkspace}</p>
-                    <p className="text-[10px] text-zinc-500">Proprietário (Owner)</p>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="font-semibold text-zinc-200 truncate text-xs" title={currentWorkspace}>
+                      {currentWorkspace}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 truncate">Proprietário (Owner)</p>
                   </div>
                 </div>
               </div>
@@ -137,12 +140,12 @@ export default function DashboardLayout({
 
         {/* User Card & Logout */}
         <div className="pt-4 border-t border-[var(--border)]">
-          <div className="flex items-center justify-between p-2 rounded-xl bg-black/30 border border-[var(--border)]">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-black/30 border border-[var(--border)] overflow-hidden">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300 flex-shrink-0">
                 {initialLetter}
               </div>
-              <div className="truncate">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-xs font-semibold text-zinc-200 truncate">{user?.name || 'Desenvolvedor'}</p>
                 <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
               </div>
@@ -150,7 +153,7 @@ export default function DashboardLayout({
             <button
               onClick={handleLogout}
               title="Sair da Conta"
-              className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-black/20 transition"
+              className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-black/20 transition flex-shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -169,10 +172,10 @@ export default function DashboardLayout({
             >
               {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-zinc-500">Workspace</span>
-              <span className="text-zinc-600">/</span>
-              <span className="font-semibold">{currentWorkspace}</span>
+            <div className="flex items-center gap-2 text-sm min-w-0 overflow-hidden">
+              <span className="text-zinc-500 flex-shrink-0">Workspace</span>
+              <span className="text-zinc-600 flex-shrink-0">/</span>
+              <span className="font-semibold truncate max-w-[180px] sm:max-w-xs" title={currentWorkspace}>{currentWorkspace}</span>
             </div>
           </div>
 
