@@ -182,6 +182,15 @@ export default function DashboardLayout({
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
           {children}
         </main>
+
+        <footer className="border-t border-[var(--border)] px-4 sm:px-8 py-4 text-[11px] text-zinc-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>APIHub • Conformidade com a Lei Geral de Proteção de Dados (LGPD)</span>
+          <div className="flex items-center gap-4 text-zinc-400">
+            <Link href="/privacidade" className="hover:underline">Privacidade</Link>
+            <Link href="/termos" className="hover:underline">Termos</Link>
+            <Link href="/canal-titular" className="text-emerald-400 hover:underline">Canal DPO</Link>
+          </div>
+        </footer>
       </div>
     </div>
   );

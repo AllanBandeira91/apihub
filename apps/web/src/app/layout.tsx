@@ -1,5 +1,6 @@
 import '../styles/globals.css';
 import type { Metadata } from 'next';
+import { CookieConsentBanner } from '../components/CookieConsentBanner';
 
 export const metadata: Metadata = {
   title: 'APIHub - Plataforma Open-Source de Gestão de APIs',
@@ -15,6 +16,7 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="min-h-screen flex flex-col antialiased">
         {children}
+        <CookieConsentBanner />
       </body>
     </html>
   );

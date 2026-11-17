@@ -112,8 +112,22 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-zinc-500">
-        <p>APIHub • Desenvolvido sob licença MIT • Custo zero & código aberto</p>
+      <footer className="border-t border-[var(--border)] py-10 bg-[var(--card)]/40 text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>APIHub • Desenvolvido sob licença MIT • Custo zero & código aberto</p>
+
+          <div className="flex flex-wrap items-center gap-6 text-zinc-400 font-medium">
+            <Link href="/privacidade" className="hover:text-foreground transition">
+              Política de Privacidade
+            </Link>
+            <Link href="/termos" className="hover:text-foreground transition">
+              Termos de Uso
+            </Link>
+            <Link href="/canal-titular" className="hover:text-foreground transition flex items-center gap-1 text-emerald-400">
+              Canal do Titular (LGPD)
+            </Link>
+          </div>
+        </div>
       </footer>
     </div>
   );
