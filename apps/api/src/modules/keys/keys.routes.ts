@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { keysService } from './keys.service';
 import { authenticate, requireWorkspaceRole } from '../../middleware/auth';
+import { recordAuditLog } from '../../lib/audit';
 import { z } from 'zod';
 
 const CreateApiKeySchema = z.object({
@@ -27,6 +28,14 @@ export async function keysRoutes(app: FastifyInstance) {
       const { workspaceId } = request.params as { workspaceId: string };
       const input = CreateApiKeySchema.parse(request.body);
       const result = await keysService.create(workspaceId, input.name, input.permissions);
+      await recordAuditLog({
+        workspaceId,
+        userId: request.user!.id,
+        action: 'CREATE_API_KEY',
+        entity: 'ApiKey',
+        entityId: result.apiKey.id,
+        metadata: { name: result.apiKey.name, keyPrefix: result.apiKey.keyPrefix },
+      });
       return reply.status(201).send({
         success: true,
         data: result,
@@ -40,6 +49,13 @@ export async function keysRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { workspaceId, keyId } = request.params as { workspaceId: string; keyId: string };
       const result = await keysService.revoke(workspaceId, keyId);
+      await recordAuditLog({
+        workspaceId,
+        userId: request.user!.id,
+        action: 'REVOKE_API_KEY',
+        entity: 'ApiKey',
+        entityId: keyId,
+      });
       return reply.send({
         success: true,
         data: result,

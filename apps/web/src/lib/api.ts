@@ -31,6 +31,18 @@ export interface BootstrapData {
   recentLogs: RequestLogItem[];
 }
 
+export interface ApiSummaryItem {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string | null;
+  baseUrl: string;
+  version: string;
+  isPublic: boolean;
+  publicSlug?: string | null;
+  _count?: { endpoints: number };
+}
+
 export interface EndpointItem {
   id: string;
   apiId: string;
@@ -41,14 +53,21 @@ export interface EndpointItem {
   summary: string;
   description?: string | null;
   tags: string[];
+  requestBody?: string | null;
   parametersCount: number;
   parameters?: {
-    id: string;
+    id?: string;
     name: string;
-    in: string;
+    in: 'query' | 'path' | 'header';
     required: boolean;
     description?: string | null;
     example?: string | null;
+  }[];
+  responseExamples?: {
+    id?: string;
+    statusCode: number;
+    description?: string | null;
+    body?: string | null;
   }[];
   createdAt?: string;
 }
@@ -85,6 +104,97 @@ export interface WorkspaceMemberItem {
   };
 }
 
+export interface EnvVariableItem {
+  key: string;
+  value: string;
+  isSecret?: boolean;
+}
+
+export interface EnvironmentItem {
+  id: string;
+  projectId: string;
+  name: string;
+  variables: EnvVariableItem[];
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface UptimeCheckItem {
+  id: string;
+  status: 'UP' | 'DOWN';
+  statusCode: number;
+  latencyMs: number;
+  error?: string | null;
+  checkedAt: string;
+}
+
+export interface UptimeMonitorItem {
+  id: string;
+  projectId: string;
+  name: string;
+  url: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  intervalMinutes: number;
+  expectedStatus: number;
+  alertEmail: string;
+  isActive: boolean;
+  lastStatus: 'PENDING' | 'UP' | 'DOWN';
+  lastStatusCode?: number | null;
+  lastLatencyMs?: number | null;
+  lastCheckedAt?: string | null;
+  totalChecks: number;
+  upChecks: number;
+  uptimePercent: number;
+  checks: UptimeCheckItem[];
+}
+
+export interface AuditLogItem {
+  id: string;
+  workspaceId: string;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
+
+export interface MetricsData {
+  totalRequests: number;
+  avgDurationMs: number;
+  statusDistribution: { statusCode: number; count: number }[];
+  recentLatencySeries: { timestamp: string; durationMs: number; status: number }[];
+}
+
+export function interpolateVariables(text: string, variables: EnvVariableItem[]): string {
+  if (!text || !variables || variables.length === 0) return text;
+  let result = text;
+  for (const v of variables) {
+    if (!v.key) continue;
+    const pattern = new RegExp(`\\{\\{\\s*${v.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g');
+    result = result.replace(pattern, v.value ?? '');
+  }
+  return result;
+}
+
+export function getActiveWorkspaceId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('apihub-active-workspace');
+}
+
+export function setActiveWorkspaceId(workspaceId: string | null) {
+  if (typeof window === 'undefined') return;
+  if (workspaceId) {
+    localStorage.setItem('apihub-active-workspace', workspaceId);
+  } else {
+    localStorage.removeItem('apihub-active-workspace');
+  }
+}
+
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('apihub-token');
@@ -119,8 +229,8 @@ export function setStoredUser(user: StoredUser | null) {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getStoredToken();
+async function request<T>(path: string, options: RequestInit = {}, skipAuth = false): Promise<T> {
+  const token = skipAuth ? null : getStoredToken();
   const headers = new Headers(options.headers || {});
 
   if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
@@ -135,7 +245,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
     ...options,
     headers,
-    credentials: 'include',
+    credentials: skipAuth ? 'omit' : 'include',
   });
 
   const json = await res.json().catch(() => null);
@@ -164,6 +274,7 @@ export const api = {
       });
       if (res.token) setStoredToken(res.token);
       if (res.user) setStoredUser(res.user);
+      if (res.defaultWorkspace?.id) setActiveWorkspaceId(res.defaultWorkspace.id);
       return res;
     },
 
@@ -187,9 +298,10 @@ export const api = {
     async logout() {
       try {
         await request('/auth/logout', { method: 'POST' });
-      } catch { }
+      } catch {}
       setStoredToken(null);
       setStoredUser(null);
+      setActiveWorkspaceId(null);
     },
 
     async getMe() {
@@ -221,16 +333,31 @@ export const api = {
       });
       setStoredToken(null);
       setStoredUser(null);
+      setActiveWorkspaceId(null);
       return res;
     },
   },
 
   workspaces: {
-    async bootstrap() {
-      return request<BootstrapData>('/workspaces/bootstrap', { method: 'GET' });
+    async bootstrap(explicitWorkspaceId?: string) {
+      const wsId = explicitWorkspaceId || getActiveWorkspaceId();
+      const query = wsId ? `?workspaceId=${encodeURIComponent(wsId)}` : '';
+      const data = await request<BootstrapData>(`/workspaces/bootstrap${query}`, { method: 'GET' });
+      if (data.workspace?.id) {
+        setActiveWorkspaceId(data.workspace.id);
+      }
+      return data;
     },
     async list() {
-      return request<{ workspaces: any[] }>('/workspaces', { method: 'GET' });
+      const res = await request<{ workspaces: any[] }>('/workspaces', { method: 'GET' });
+      return res.workspaces;
+    },
+    async create(data: { name: string; slug: string; description?: string }) {
+      const res = await request<{ workspace: any }>('/workspaces', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return res.workspace;
     },
     async update(workspaceId: string, data: { name?: string; description?: string }) {
       return request<{ workspace: any }>(`/workspaces/${workspaceId}`, {
@@ -256,6 +383,33 @@ export const api = {
       return request<{ message: string }>(`/workspaces/${workspaceId}/members/${memberId}`, {
         method: 'DELETE',
       });
+    },
+    async auditLogs(workspaceId: string, limit = 50) {
+      const res = await request<{ logs: AuditLogItem[] }>(
+        `/workspaces/${workspaceId}/audit-logs?limit=${limit}`,
+        { method: 'GET' }
+      );
+      return res.logs;
+    },
+  },
+
+  apis: {
+    async listByProject(projectId: string) {
+      const res = await request<{ apis: ApiSummaryItem[] }>(`/projects/${projectId}/apis`, {
+        method: 'GET',
+      });
+      return res.apis;
+    },
+    async setVisibility(apiId: string, isPublic: boolean) {
+      const res = await request<{ api: ApiSummaryItem }>(`/apis/${apiId}/visibility`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isPublic }),
+      });
+      return res.api;
+    },
+    async getPublicDocs(slug: string) {
+      const res = await request<{ api: any }>(`/public/docs/${encodeURIComponent(slug)}`, { method: 'GET' }, true);
+      return res.api;
     },
   },
 
@@ -284,6 +438,35 @@ export const api = {
       });
       return res.endpoint;
     },
+    async updateFull(
+      endpointId: string,
+      data: {
+        method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        path?: string;
+        summary?: string;
+        description?: string | null;
+        tags?: string[];
+        requestBody?: string | null;
+        parameters?: {
+          name: string;
+          in: 'query' | 'path' | 'header';
+          required?: boolean;
+          description?: string | null;
+          example?: string | null;
+        }[];
+        responseExamples?: {
+          statusCode: number;
+          description?: string | null;
+          body?: string | null;
+        }[];
+      }
+    ) {
+      const res = await request<{ endpoint: EndpointItem }>(`/endpoints/${endpointId}/full`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      return res.endpoint;
+    },
     async delete(endpointId: string) {
       return request<{ message: string }>(`/endpoints/${endpointId}`, {
         method: 'DELETE',
@@ -293,6 +476,78 @@ export const api = {
       return request<{ api: any; importedCount: number }>(`/projects/${projectId}/import-openapi`, {
         method: 'POST',
         body: JSON.stringify(spec),
+      });
+    },
+  },
+
+  environments: {
+    async list(projectId: string) {
+      const res = await request<{ environments: EnvironmentItem[] }>(`/projects/${projectId}/environments`, {
+        method: 'GET',
+      });
+      return res.environments;
+    },
+    async create(projectId: string, data: { name: string; variables: EnvVariableItem[]; isDefault?: boolean }) {
+      const res = await request<{ environment: EnvironmentItem }>(`/projects/${projectId}/environments`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return res.environment;
+    },
+    async update(envId: string, data: { name?: string; variables?: EnvVariableItem[]; isDefault?: boolean }) {
+      const res = await request<{ environment: EnvironmentItem }>(`/environments/${envId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+      return res.environment;
+    },
+    async delete(envId: string) {
+      return request<{ message: string }>(`/environments/${envId}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  monitors: {
+    async list(projectId: string) {
+      const res = await request<{ monitors: UptimeMonitorItem[] }>(`/projects/${projectId}/monitors`, {
+        method: 'GET',
+      });
+      return res.monitors;
+    },
+    async create(
+      projectId: string,
+      data: {
+        name: string;
+        url: string;
+        method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        intervalMinutes?: number;
+        expectedStatus?: number;
+        alertEmail: string;
+      }
+    ) {
+      const res = await request<{ monitor: UptimeMonitorItem }>(`/projects/${projectId}/monitors`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return res.monitor;
+    },
+    async checkNow(monitorId: string) {
+      const res = await request<{ monitor: UptimeMonitorItem }>(`/monitors/${monitorId}/check`, {
+        method: 'POST',
+      });
+      return res.monitor;
+    },
+    async toggleActive(monitorId: string, isActive: boolean) {
+      const res = await request<{ monitor: UptimeMonitorItem }>(`/monitors/${monitorId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      });
+      return res.monitor;
+    },
+    async delete(monitorId: string) {
+      return request<{ message: string }>(`/monitors/${monitorId}`, {
+        method: 'DELETE',
       });
     },
   },
@@ -350,6 +605,12 @@ export const api = {
       return request<{ message: string }>(`/projects/${projectId}/tester/logs`, {
         method: 'DELETE',
       });
+    },
+    async metrics(projectId: string) {
+      const res = await request<{ metrics: MetricsData }>(`/projects/${projectId}/metrics`, {
+        method: 'GET',
+      });
+      return res.metrics;
     },
   },
 };

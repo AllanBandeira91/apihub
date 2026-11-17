@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Play,
   ShieldAlert,
@@ -13,9 +14,10 @@ import {
   History,
   RotateCcw,
   AlertCircle,
-  Server
+  Server,
+  Sliders
 } from 'lucide-react';
-import { api, RequestLogItem } from '../../../lib/api';
+import { api, RequestLogItem, EnvironmentItem, interpolateVariables } from '../../../lib/api';
 import { CodeSnippetBox } from '../../../components/CodeSnippetBox';
 
 interface HeaderPair {
@@ -25,6 +27,9 @@ interface HeaderPair {
 
 export default function TesterPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [environments, setEnvironments] = useState<EnvironmentItem[]>([]);
+  const [selectedEnvId, setSelectedEnvId] = useState<string>('');
+
   const [method, setMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
   const [url, setUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'params' | 'body' | 'code'>('params');
@@ -61,18 +66,30 @@ export default function TesterPage() {
       .bootstrap()
       .then(async boot => {
         setProjectId(boot.project.id);
-        const logs = await api.tester.logs(boot.project.id, 25);
+        const [logs, envList] = await Promise.all([
+          api.tester.logs(boot.project.id, 25),
+          api.environments.list(boot.project.id),
+        ]);
         setHistory(logs);
+        setEnvironments(envList);
+        const def = envList.find(e => e.isDefault) || envList[0];
+        if (def) setSelectedEnvId(def.id);
       })
       .catch(() => {})
       .finally(() => setIsLoadingHistory(false));
   }, []);
 
+  const activeEnv = environments.find(e => e.id === selectedEnvId) || null;
+  const activeVars = activeEnv && Array.isArray(activeEnv.variables) ? activeEnv.variables : [];
+
+  const resolvedUrl = interpolateVariables(url.trim(), activeVars);
+  const resolvedBody = interpolateVariables(requestBody, activeVars);
+
   const buildHeaderMap = (): Record<string, string> => {
     const map: Record<string, string> = {};
     headers.forEach(h => {
-      const cleanKey = h.key.replace(/[\r\n\0]/g, '').trim();
-      const cleanVal = h.value.replace(/[\r\n\0]/g, '').trim();
+      const cleanKey = interpolateVariables(h.key, activeVars).replace(/[\r\n\0]/g, '').trim();
+      const cleanVal = interpolateVariables(h.value, activeVars).replace(/[\r\n\0]/g, '').trim();
       if (cleanKey) map[cleanKey] = cleanVal;
     });
     return map;
@@ -97,14 +114,13 @@ export default function TesterPage() {
     setErrorMessage(null);
     setResponse(null);
 
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl) {
-      setErrorMessage('Por favor, informe a URL completa da API (ex: https://api.seudominio.com/v1/recurso).');
+    if (!resolvedUrl) {
+      setErrorMessage('Por favor, informe a URL completa da API (ou use {{BASE_URL}}/recurso).');
       return;
     }
 
-    if (!/^https?:\/\//i.test(trimmedUrl)) {
-      setErrorMessage('A URL deve começar com http:// ou https://');
+    if (!/^https?:\/\//i.test(resolvedUrl)) {
+      setErrorMessage(`URL resolvida inválida ("${resolvedUrl}"). Deve começar com http:// ou https://`);
       return;
     }
 
@@ -117,14 +133,13 @@ export default function TesterPage() {
 
     try {
       const headerObj = buildHeaderMap();
-      const hasBody = ['POST', 'PUT', 'PATCH'].includes(method) && requestBody.trim().length > 0;
+      const hasBody = ['POST', 'PUT', 'PATCH'].includes(method) && resolvedBody.trim().length > 0;
 
-      // Execute via Backend Proxy (Zero CORS + Real Server-Side DNS Anti-SSRF + Supabase RequestLog)
       const res = await api.tester.execute(projectId, {
         method,
-        url: trimmedUrl,
+        url: resolvedUrl,
         headers: headerObj,
-        body: hasBody ? requestBody : undefined,
+        body: hasBody ? resolvedBody : undefined,
       });
 
       if (res.error) {
@@ -143,7 +158,6 @@ export default function TesterPage() {
         data: parsedData,
       });
 
-      // Refresh logs from Supabase
       const updatedLogs = await api.tester.logs(projectId, 25);
       setHistory(updatedLogs);
     } catch (err: any) {
@@ -181,16 +195,35 @@ export default function TesterPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">API Tester Seguro</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Disparo real via Proxy do Servidor (sem bloqueios de CORS), blindagem anti-SSRF via DNS e logs no Supabase.
+            Proxy do servidor (sem CORS), variáveis de ambiente <code className="text-blue-400">{'{{VAR}}'}</code> e blindagem anti-SSRF.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg px-2.5 py-1.5">
+            <Sliders className="w-3.5 h-3.5 text-purple-400" />
+            <select
+              value={selectedEnvId}
+              onChange={e => setSelectedEnvId(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-zinc-200 focus:outline-none"
+            >
+              <option value="" className="bg-zinc-950">Sem Ambiente</option>
+              {environments.map(env => (
+                <option key={env.id} value={env.id} className="bg-zinc-950">
+                  {env.name}
+                </option>
+              ))}
+            </select>
+            <Link href="/dashboard/environments" className="text-[10px] text-blue-400 hover:underline ml-1">
+              Editar
+            </Link>
+          </div>
+
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-950/40 text-blue-400 border border-blue-800">
-            <Server className="w-4 h-4" /> Proxy Backend (Sem CORS)
+            <Server className="w-4 h-4" /> Proxy Backend
           </span>
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/40 text-emerald-400 border border-emerald-800">
-            <ShieldCheck className="w-4 h-4" /> Anti-SSRF Real (DNS)
+            <ShieldCheck className="w-4 h-4" /> Anti-SSRF
           </span>
         </div>
       </div>
@@ -217,7 +250,7 @@ export default function TesterPage() {
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleExecute()}
-                placeholder="https://api.seusistema.com/v1/recurso"
+                placeholder="https://api.seusistema.com/v1/recurso ou {{BASE_URL}}/v1/recurso"
                 className="flex-1 bg-black/50 border border-[var(--border)] rounded-lg px-4 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
               />
 
@@ -234,6 +267,12 @@ export default function TesterPage() {
                 Executar
               </button>
             </div>
+
+            {url.includes('{{') && resolvedUrl !== url.trim() && (
+              <div className="text-[11px] font-mono text-purple-300 bg-purple-950/20 border border-purple-900/50 rounded-lg px-3 py-1.5 truncate">
+                Resolvido ({activeEnv?.name}): <span className="text-zinc-200">{resolvedUrl}</span>
+              </div>
+            )}
 
             {/* Request Tabs */}
             <div className="border-b border-[var(--border)] flex gap-4 text-xs font-semibold pt-2">
@@ -281,7 +320,7 @@ export default function TesterPage() {
                       type="text"
                       value={h.value}
                       onChange={e => handleHeaderChange(idx, 'value', e.target.value)}
-                      placeholder="Valor"
+                      placeholder="Valor ou Bearer {{TOKEN}}"
                       className="flex-1 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-500"
                     />
                     <button
@@ -317,9 +356,9 @@ export default function TesterPage() {
               <CodeSnippetBox
                 request={{
                   method,
-                  url: url.trim(),
+                  url: resolvedUrl,
                   headers: buildHeaderMap(),
-                  body: requestBody,
+                  body: resolvedBody,
                 }}
               />
             )}

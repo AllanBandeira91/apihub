@@ -3,22 +3,40 @@ import { AppError } from '../../plugins/errorHandler';
 import { CreateWorkspaceInput } from '@apihub/shared';
 import { validateRealEmail } from '../auth/email-validator';
 import { sendWorkspaceInviteEmail } from '../auth/mailer';
+import { recordAuditLog } from '../../lib/audit';
 
 export class WorkspacesService {
-  async bootstrap(userId: string) {
-    let membership = await prisma.workspaceMember.findFirst({
-      where: { userId },
-      include: {
-        workspace: {
+  async bootstrap(userId: string, requestedWorkspaceId?: string) {
+    let membership = requestedWorkspaceId
+      ? await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: requestedWorkspaceId, userId } },
           include: {
-            projects: {
-              orderBy: { createdAt: 'asc' },
+            workspace: {
+              include: {
+                projects: {
+                  orderBy: { createdAt: 'asc' },
+                },
+              },
+            },
+          },
+        })
+      : null;
+
+    if (!membership) {
+      membership = await prisma.workspaceMember.findFirst({
+        where: { userId },
+        include: {
+          workspace: {
+            include: {
+              projects: {
+                orderBy: { createdAt: 'asc' },
+              },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        orderBy: { createdAt: 'asc' },
+      });
+    }
 
     if (!membership) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -177,6 +195,15 @@ export class WorkspacesService {
 
     await sendWorkspaceInviteEmail(validEmail, inviter.name, workspace.name, role, true);
 
+    await recordAuditLog({
+      workspaceId,
+      userId: inviterUserId,
+      action: 'ADD_MEMBER',
+      entity: 'WorkspaceMember',
+      entityId: member.id,
+      metadata: { email: validEmail, role },
+    });
+
     return {
       status: 'ADDED' as const,
       member,
@@ -246,6 +273,13 @@ export class WorkspacesService {
             role: 'OWNER',
           },
         },
+        projects: {
+          create: {
+            name: 'Projeto Principal',
+            slug: 'principal',
+            description: 'Projeto padrão do workspace',
+          },
+        },
       },
       include: {
         members: {
@@ -256,6 +290,15 @@ export class WorkspacesService {
           },
         },
       },
+    });
+
+    await recordAuditLog({
+      workspaceId: workspace.id,
+      userId,
+      action: 'CREATE_WORKSPACE',
+      entity: 'Workspace',
+      entityId: workspace.id,
+      metadata: { name: workspace.name },
     });
 
     return workspace;
@@ -302,7 +345,7 @@ export class WorkspacesService {
     };
   }
 
-  async update(workspaceId: string, input: Partial<CreateWorkspaceInput>) {
+  async update(workspaceId: string, input: Partial<CreateWorkspaceInput>, userId?: string) {
     const workspace = await prisma.workspace.update({
       where: { id: workspaceId },
       data: {
@@ -311,7 +354,36 @@ export class WorkspacesService {
       },
     });
 
+    await recordAuditLog({
+      workspaceId,
+      userId,
+      action: 'UPDATE_WORKSPACE',
+      entity: 'Workspace',
+      entityId: workspaceId,
+      metadata: { name: workspace.name },
+    });
+
     return workspace;
+  }
+
+  async listAuditLogs(workspaceId: string, userId: string, limit = 50) {
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+    });
+    if (!membership) {
+      throw new AppError('Acesso negado a este workspace', 403, 'FORBIDDEN');
+    }
+
+    return prisma.auditLog.findMany({
+      where: { workspaceId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 100),
+    });
   }
 }
 

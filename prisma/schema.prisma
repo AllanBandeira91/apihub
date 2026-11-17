@@ -67,16 +67,18 @@ model WorkspaceMember {
 }
 
 model Project {
-  id          String          @id @default(uuid())
-  workspaceId String
-  name        String
-  slug        String
-  description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  apis        ApiDefinition[]
-  requestLogs RequestLog[]
+  id           String          @id @default(uuid())
+  workspaceId  String
+  name         String
+  slug         String
+  description  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  apis         ApiDefinition[]
+  requestLogs  RequestLog[]
+  environments Environment[]
+  monitors     UptimeMonitor[]
 
   @@unique([workspaceId, slug])
   @@map("projects")
@@ -90,6 +92,7 @@ model ApiDefinition {
   baseUrl     String
   version     String     @default("v1.0.0")
   isPublic    Boolean    @default(false)
+  publicSlug  String?    @unique
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -200,4 +203,57 @@ model EmailVerification {
 
   @@index([email, code])
   @@map("email_verifications")
+}
+
+model Environment {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  variables Json     @default("[]")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@map("environments")
+}
+
+model UptimeMonitor {
+  id              String        @id @default(uuid())
+  projectId       String
+  name            String
+  url             String
+  method          HttpMethod    @default(GET)
+  intervalMinutes Int           @default(5)
+  expectedStatus  Int           @default(200)
+  alertEmail      String
+  isActive        Boolean       @default(true)
+  lastStatus      String        @default("PENDING") // PENDING | UP | DOWN
+  lastStatusCode  Int?
+  lastLatencyMs   Int?
+  lastCheckedAt   DateTime?
+  totalChecks     Int           @default(0)
+  upChecks        Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  checks          UptimeCheck[]
+
+  @@index([projectId])
+  @@map("uptime_monitors")
+}
+
+model UptimeCheck {
+  id         String        @id @default(uuid())
+  monitorId  String
+  status     String        // UP | DOWN
+  statusCode Int
+  latencyMs  Int
+  error      String?
+  checkedAt  DateTime      @default(now())
+  monitor    UptimeMonitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+
+  @@index([monitorId, checkedAt])
+  @@map("uptime_checks")
 }

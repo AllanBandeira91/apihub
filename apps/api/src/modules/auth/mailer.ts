@@ -150,3 +150,68 @@ export async function sendWorkspaceInviteEmail(
     // Non-fatal if invite email fails when user is already added to workspace
   }
 }
+
+export async function sendUptimeAlertEmail(params: {
+  to: string;
+  monitorName: string;
+  url: string;
+  status: 'UP' | 'DOWN';
+  statusCode: number;
+  latencyMs: number;
+  error?: string | null;
+}): Promise<void> {
+  const sanitizedTo = params.to.replace(/[\r\n\0]/g, '').trim();
+  let transporter;
+  try {
+    transporter = createTransporter();
+  } catch {
+    return;
+  }
+
+  const isDown = params.status === 'DOWN';
+  const subject = isDown
+    ? `[ALERTA CRÍTICO] APIHub — "${params.monitorName}" está FORA DO AR`
+    : `[RECUPERADO] APIHub — "${params.monitorName}" voltou ao normal`;
+
+  const badgeColor = isDown ? '#dc2626' : '#16a34a';
+  const badgeLabel = isDown ? 'OFFLINE / DOWN' : 'ONLINE / UP';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #09090b; color: #f4f4f5; padding: 32px 16px;">
+      <div style="max-width: 500px; margin: 0 auto; background-color: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 32px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <span style="display: inline-block; padding: 6px 14px; border-radius: 999px; background-color: ${badgeColor}; color: #ffffff; font-weight: bold; font-size: 12px; letter-spacing: 1px;">
+            ${badgeLabel}
+          </span>
+          <h1 style="margin: 16px 0 6px; font-size: 20px; color: #ffffff;">${params.monitorName}</h1>
+          <p style="margin: 0; font-size: 12px; font-family: monospace; color: #a1a1aa; word-break: break-all;">${params.url}</p>
+        </div>
+
+        <div style="background-color: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; font-size: 13px; color: #d4d4d8;">
+          <p style="margin: 4px 0;"><strong>Status HTTP:</strong> ${params.statusCode || 'Sem resposta'}</p>
+          <p style="margin: 4px 0;"><strong>Latência:</strong> ${params.latencyMs} ms</p>
+          ${params.error ? `<p style="margin: 4px 0; color: #f87171;"><strong>Detalhe:</strong> ${params.error}</p>` : ''}
+          <p style="margin: 4px 0;"><strong>Horário (UTC):</strong> ${new Date().toISOString()}</p>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #27272a; margin: 24px 0;" />
+
+        <p style="font-size: 11px; color: #52525b; text-align: center; margin: 0;">
+          APIHub Monitoramento Automático • Suporte: apihubsupport@gmail.com
+        </p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: env.SMTP_FROM,
+      to: sanitizedTo,
+      subject,
+      text: `${badgeLabel} - ${params.monitorName} (${params.url}) | Status: ${params.statusCode} | Latência: ${params.latencyMs}ms ${params.error ? '| Erro: ' + params.error : ''}`,
+      html,
+    });
+  } catch {
+    // Avoid throwing from background alert dispatch
+  }
+}

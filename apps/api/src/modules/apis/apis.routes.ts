@@ -12,6 +12,13 @@ export async function apisRoutes(app: FastifyInstance) {
     return reply.send(spec);
   });
 
+  // Public shareable documentation portal (no auth required)
+  app.get('/public/docs/:slug', async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    const api = await apisService.getPublicDocsBySlug(slug);
+    return reply.send({ success: true, data: { api } });
+  });
+
   // Protected endpoints
   app.register(async protectedScope => {
     protectedScope.addHook('preHandler', authenticate);
@@ -89,6 +96,55 @@ export async function apisRoutes(app: FastifyInstance) {
       return reply.send({
         success: true,
         data: { api },
+      });
+    });
+
+    protectedScope.patch('/apis/:apiId/visibility', async (request, reply) => {
+      const { apiId } = request.params as { apiId: string };
+      const input = z.object({ isPublic: z.boolean() }).parse(request.body);
+      const api = await apisService.setApiVisibility(apiId, request.user!.id, input.isPublic);
+      return reply.send({
+        success: true,
+        data: { api },
+      });
+    });
+
+    protectedScope.put('/endpoints/:endpointId/full', async (request, reply) => {
+      const { endpointId } = request.params as { endpointId: string };
+      const input = z
+        .object({
+          method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']).optional(),
+          path: z.string().min(1).optional(),
+          summary: z.string().min(1).optional(),
+          description: z.string().nullable().optional(),
+          tags: z.array(z.string()).optional(),
+          requestBody: z.string().nullable().optional(),
+          parameters: z
+            .array(
+              z.object({
+                name: z.string(),
+                in: z.enum(['query', 'path', 'header']).default('query'),
+                required: z.boolean().optional(),
+                description: z.string().nullable().optional(),
+                example: z.string().nullable().optional(),
+              })
+            )
+            .optional(),
+          responseExamples: z
+            .array(
+              z.object({
+                statusCode: z.coerce.number().int().min(100).max(599),
+                description: z.string().nullable().optional(),
+                body: z.string().nullable().optional(),
+              })
+            )
+            .optional(),
+        })
+        .parse(request.body);
+      const endpoint = await apisService.updateEndpointFull(endpointId, request.user!.id, input);
+      return reply.send({
+        success: true,
+        data: { endpoint },
       });
     });
 

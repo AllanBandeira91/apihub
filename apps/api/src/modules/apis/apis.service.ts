@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../plugins/errorHandler';
 import { CreateApiDefinitionInput, CreateEndpointInput } from '@apihub/shared';
+import { recordAuditLog } from '../../lib/audit';
 
 export class ApisService {
   private async ensureProjectAccess(projectId: string, userId: string) {
@@ -214,6 +215,182 @@ export class ApisService {
     return {
       api: apiDef,
       importedCount,
+    };
+  }
+
+  async setApiVisibility(apiId: string, userId: string, isPublic: boolean) {
+    const apiDef = await prisma.apiDefinition.findUnique({
+      where: { id: apiId },
+      include: { project: true },
+    });
+    if (!apiDef) {
+      throw new AppError('API não encontrada.', 404, 'NOT_FOUND');
+    }
+    const project = await this.ensureProjectAccess(apiDef.projectId, userId);
+
+    let publicSlug = apiDef.publicSlug;
+    if (isPublic && !publicSlug) {
+      const base = apiDef.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'api';
+      publicSlug = `${base}-${apiDef.id.slice(0, 6)}`;
+    }
+
+    const updated = await prisma.apiDefinition.update({
+      where: { id: apiId },
+      data: { isPublic, publicSlug },
+      include: { _count: { select: { endpoints: true } } },
+    });
+
+    await recordAuditLog({
+      workspaceId: project.workspaceId,
+      userId,
+      action: isPublic ? 'PUBLISH_API_DOCS' : 'UNPUBLISH_API_DOCS',
+      entity: 'ApiDefinition',
+      entityId: apiId,
+      metadata: { name: updated.name, publicSlug: updated.publicSlug },
+    });
+
+    return updated;
+  }
+
+  async getPublicDocsBySlug(slug: string) {
+    const apiDef = await prisma.apiDefinition.findUnique({
+      where: { publicSlug: slug },
+      include: {
+        endpoints: {
+          include: {
+            parameters: true,
+            responseExamples: true,
+          },
+          orderBy: [{ path: 'asc' }, { method: 'asc' }],
+        },
+      },
+    });
+
+    if (!apiDef || !apiDef.isPublic) {
+      throw new AppError('Documentação pública não encontrada ou privada.', 404, 'NOT_FOUND');
+    }
+
+    return {
+      id: apiDef.id,
+      name: apiDef.name,
+      description: apiDef.description,
+      baseUrl: apiDef.baseUrl,
+      version: apiDef.version,
+      publicSlug: apiDef.publicSlug,
+      updatedAt: apiDef.updatedAt,
+      endpoints: apiDef.endpoints,
+    };
+  }
+
+  async updateEndpointFull(
+    endpointId: string,
+    userId: string,
+    input: {
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+      path?: string;
+      summary?: string;
+      description?: string | null;
+      tags?: string[];
+      requestBody?: string | null;
+      parameters?: {
+        name: string;
+        in: string;
+        required?: boolean;
+        description?: string | null;
+        example?: string | null;
+      }[];
+      responseExamples?: {
+        statusCode: number;
+        description?: string | null;
+        body?: string | null;
+      }[];
+    }
+  ) {
+    const existing = await prisma.endpoint.findUnique({
+      where: { id: endpointId },
+      include: { api: { include: { project: true } } },
+    });
+    if (!existing) {
+      throw new AppError('Endpoint não encontrado.', 404, 'NOT_FOUND');
+    }
+    const project = await this.ensureProjectAccess(existing.api.projectId, userId);
+
+    const formattedPath = input.path
+      ? input.path.startsWith('/')
+        ? input.path
+        : `/${input.path}`
+      : undefined;
+
+    if (input.parameters) {
+      await prisma.parameter.deleteMany({ where: { endpointId } });
+    }
+    if (input.responseExamples) {
+      await prisma.responseExample.deleteMany({ where: { endpointId } });
+    }
+
+    const ep = await prisma.endpoint.update({
+      where: { id: endpointId },
+      data: {
+        method: input.method,
+        path: formattedPath,
+        summary: input.summary,
+        description: input.description,
+        tags: input.tags,
+        requestBody: input.requestBody,
+        parameters: input.parameters
+          ? {
+              create: input.parameters
+                .filter(p => p.name && p.name.trim())
+                .map(p => ({
+                  name: p.name.trim(),
+                  in: p.in || 'query',
+                  required: Boolean(p.required),
+                  description: p.description || null,
+                  example: p.example || null,
+                })),
+            }
+          : undefined,
+        responseExamples: input.responseExamples
+          ? {
+              create: input.responseExamples.map(r => ({
+                statusCode: Number(r.statusCode) || 200,
+                description: r.description || null,
+                body: r.body || null,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        api: { select: { id: true, name: true, baseUrl: true } },
+        parameters: true,
+        responseExamples: true,
+      },
+    });
+
+    await recordAuditLog({
+      workspaceId: project.workspaceId,
+      userId,
+      action: 'UPDATE_ENDPOINT',
+      entity: 'Endpoint',
+      entityId: ep.id,
+      metadata: { method: ep.method, path: ep.path },
+    });
+
+    return {
+      id: ep.id,
+      apiId: ep.api.id,
+      apiName: ep.api.name,
+      baseUrl: ep.api.baseUrl,
+      method: ep.method,
+      path: ep.path,
+      summary: ep.summary,
+      description: ep.description,
+      tags: ep.tags,
+      requestBody: ep.requestBody,
+      parametersCount: ep.parameters.length,
+      parameters: ep.parameters,
+      responseExamples: ep.responseExamples,
+      createdAt: ep.createdAt,
     };
   }
 

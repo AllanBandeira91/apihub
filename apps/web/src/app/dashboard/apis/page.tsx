@@ -11,18 +11,26 @@ import {
   Inbox,
   Upload,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Pencil,
+  Globe,
+  Lock,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
-import { api, EndpointItem } from '../../../lib/api';
+import { api, EndpointItem, ApiSummaryItem } from '../../../lib/api';
 
 export type { EndpointItem };
 
 export default function ApisPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [apis, setApis] = useState<ApiSummaryItem[]>([]);
   const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('ALL');
@@ -37,6 +45,21 @@ export default function ApisPage() {
   const [newApiName, setNewApiName] = useState('API Principal');
   const [newBaseUrl, setNewBaseUrl] = useState('');
 
+  // Edit Endpoint Modal (full editing: description, body, params, response examples)
+  const [editingEp, setEditingEp] = useState<EndpointItem | null>(null);
+  const [editMethod, setEditMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
+  const [editPath, setEditPath] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editReqBody, setEditReqBody] = useState('');
+  const [editParams, setEditParams] = useState<
+    { name: string; in: 'query' | 'path' | 'header'; required: boolean; description: string }[]
+  >([]);
+  const [editResponses, setEditResponses] = useState<
+    { statusCode: number; description: string; body: string }[]
+  >([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Import OpenAPI / Swagger JSON Modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
@@ -48,8 +71,12 @@ export default function ApisPage() {
     try {
       const boot = await api.workspaces.bootstrap();
       setProjectId(boot.project.id);
-      const list = await api.endpoints.list(boot.project.id);
-      setEndpoints(list);
+      const [epList, apiList] = await Promise.all([
+        api.endpoints.list(boot.project.id),
+        api.apis.listByProject(boot.project.id),
+      ]);
+      setEndpoints(epList);
+      setApis(apiList);
     } catch (err: any) {
       setError(err?.message || 'Erro ao carregar endpoints do Supabase.');
     } finally {
@@ -60,6 +87,29 @@ export default function ApisPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleTogglePublic = async (apiItem: ApiSummaryItem) => {
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updated = await api.apis.setVisibility(apiItem.id, !apiItem.isPublic);
+      setApis(prev => prev.map(a => (a.id === updated.id ? updated : a)));
+      setSuccessMsg(
+        updated.isPublic
+          ? `Portal público ativado para "${updated.name}" em /p/${updated.publicSlug}`
+          : `"${updated.name}" voltou para modo privado.`
+      );
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao alterar visibilidade da API.');
+    }
+  };
+
+  const handleCopyPublicLink = (slug: string) => {
+    const fullLink = `${window.location.origin}/p/${slug}`;
+    navigator.clipboard.writeText(fullLink);
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(null), 2000);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +130,8 @@ export default function ApisPage() {
       });
 
       setEndpoints(prev => [created, ...prev]);
+      const apiList = await api.apis.listByProject(projectId);
+      setApis(apiList);
       setIsModalOpen(false);
       setNewPath('');
       setNewSummary('');
@@ -90,6 +142,56 @@ export default function ApisPage() {
       setError(err?.message || 'Erro ao salvar endpoint.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openEditModal = (ep: EndpointItem) => {
+    setEditingEp(ep);
+    setEditMethod(ep.method);
+    setEditPath(ep.path);
+    setEditSummary(ep.summary);
+    setEditDesc(ep.description || '');
+    setEditReqBody(ep.requestBody || '');
+    setEditParams(
+      (ep.parameters || []).map(p => ({
+        name: p.name,
+        in: p.in,
+        required: p.required,
+        description: p.description || '',
+      }))
+    );
+    setEditResponses(
+      (ep.responseExamples || []).map(r => ({
+        statusCode: r.statusCode,
+        description: r.description || '',
+        body: r.body || '',
+      }))
+    );
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEp) return;
+    setSavingEdit(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updated = await api.endpoints.updateFull(editingEp.id, {
+        method: editMethod,
+        path: editPath.trim(),
+        summary: editSummary.trim(),
+        description: editDesc.trim() || null,
+        requestBody: editReqBody.trim() || null,
+        parameters: editParams.filter(p => p.name.trim()),
+        responseExamples: editResponses,
+      });
+      setEndpoints(prev => prev.map(item => (item.id === updated.id ? updated : item)));
+      setEditingEp(null);
+      setSuccessMsg('Endpoint atualizado com sucesso no Supabase!');
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao atualizar endpoint.');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -128,15 +230,14 @@ export default function ApisPage() {
       try {
         parsedSpec = JSON.parse(importJsonText);
       } catch {
-        throw new Error('O conteúdo informado não é um JSON válido. Verifique a sintaxe do arquivo OpenAPI/Swagger.');
+        throw new Error('O conteúdo informado não é um JSON válido.');
       }
 
       const res = await api.endpoints.importOpenApi(projectId, parsedSpec);
-      const updatedList = await api.endpoints.list(projectId);
-      setEndpoints(updatedList);
+      await loadData();
       setIsImportModalOpen(false);
       setImportJsonText('');
-      setSuccessMsg(`${res.importedCount} endpoint(s) importado(s) com sucesso para "${res.api.name}"!`);
+      setSuccessMsg(`${res.importedCount} endpoint(s) importado(s) para "${res.api.name}"!`);
     } catch (err: any) {
       setError(err?.message || 'Falha ao importar especificação OpenAPI.');
     } finally {
@@ -166,11 +267,11 @@ export default function ApisPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Catálogo de APIs & Endpoints</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Cadastre rotas manualmente ou importe arquivos OpenAPI/Swagger JSON direto para o Supabase.
+            Cadastre, edite, importe OpenAPI/Swagger JSON e publique portais de documentação compartilháveis.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               setError(null);
@@ -178,7 +279,7 @@ export default function ApisPage() {
             }}
             className="border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-200 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
           >
-            <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger / OpenAPI
+            <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger
           </button>
 
           <button
@@ -209,6 +310,70 @@ export default function ApisPage() {
           <button onClick={() => setSuccessMsg(null)} className="text-zinc-400 hover:text-white">
             <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Public Shareable Portal Cards */}
+      {apis.length > 0 && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+            <Globe className="w-3.5 h-3.5 text-emerald-400" /> Portais Públicos de Documentação
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {apis.map(a => (
+              <div
+                key={a.id}
+                className="p-3 rounded-lg border border-[var(--border)] bg-black/30 flex items-center justify-between gap-3 text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="font-bold text-zinc-100 truncate">{a.name}</p>
+                  <p className="text-[11px] text-zinc-500 truncate">
+                    {a._count?.endpoints ?? 0} endpoint(s) •{' '}
+                    {a.isPublic && a.publicSlug ? `/p/${a.publicSlug}` : 'Privada'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {a.isPublic && a.publicSlug && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPublicLink(a.publicSlug!)}
+                        className="px-2.5 py-1 rounded-md border border-[var(--border)] bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center gap-1"
+                        title="Copiar link público"
+                      >
+                        {copiedSlug === a.publicSlug ? (
+                          <Check className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                      </button>
+                      <Link
+                        href={`/p/${a.publicSlug}`}
+                        target="_blank"
+                        className="px-2.5 py-1 rounded-md border border-emerald-800 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950 flex items-center gap-1"
+                        title="Abrir portal público"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePublic(a)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 border transition ${
+                      a.isPublic
+                        ? 'bg-emerald-600/20 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/30'
+                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    {a.isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                    {a.isPublic ? 'Pública' : 'Publicar'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -257,26 +422,10 @@ export default function ApisPage() {
             <h3 className="font-bold text-lg text-white">Nenhum endpoint cadastrado</h3>
             <p className="text-xs text-zinc-400">
               {endpoints.length === 0
-                ? 'Seu catálogo está limpo e sincronizado com o Supabase. Cadastre manualmente ou importe um Swagger/OpenAPI JSON.'
+                ? 'Cadastre manualmente ou importe um Swagger/OpenAPI JSON.'
                 : 'Nenhum endpoint corresponde aos filtros selecionados.'}
             </p>
           </div>
-          {endpoints.length === 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
-              >
-                <Plus className="w-4 h-4" /> Cadastrar Primeiro Endpoint
-              </button>
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-200 px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 transition"
-              >
-                <Upload className="w-4 h-4 text-emerald-400" /> Importar Swagger JSON
-              </button>
-            </div>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
@@ -306,20 +455,25 @@ export default function ApisPage() {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
                       {ep.apiName}
                     </span>
-                    {ep.tags?.map((t, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-blue-950/40 text-blue-300 border border-blue-900/50"
-                      >
-                        {t}
+                    {ep.parametersCount > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/50 text-purple-300 border border-purple-900">
+                        {ep.parametersCount} param(s)
                       </span>
-                    ))}
+                    )}
                   </div>
                   <p className="text-xs text-zinc-400 mt-0.5">{ep.summary}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                <button
+                  onClick={() => openEditModal(ep)}
+                  title="Editar endpoint, parâmetros e respostas"
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-amber-400" /> Editar
+                </button>
+
                 <Link
                   href={buildTesterUrl(ep)}
                   className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -343,15 +497,12 @@ export default function ApisPage() {
       {/* Create Endpoint Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <Plus className="w-5 h-5 text-blue-400" /> Novo Endpoint
               </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -363,7 +514,7 @@ export default function ApisPage() {
                   <select
                     value={newMethod}
                     onChange={e => setNewMethod(e.target.value as any)}
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-blue-500"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono font-bold"
                   >
                     <option value="GET">GET</option>
                     <option value="POST">POST</option>
@@ -381,7 +532,7 @@ export default function ApisPage() {
                     value={newPath}
                     onChange={e => setNewPath(e.target.value)}
                     placeholder="/v1/recurso"
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono"
                   />
                 </div>
               </div>
@@ -393,7 +544,7 @@ export default function ApisPage() {
                   value={newSummary}
                   onChange={e => setNewSummary(e.target.value)}
                   placeholder="Ex: Retorna listagem paginada de clientes"
-                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs"
                 />
               </div>
 
@@ -404,7 +555,7 @@ export default function ApisPage() {
                   value={newBaseUrl}
                   onChange={e => setNewBaseUrl(e.target.value)}
                   placeholder="https://api.seusistema.com"
-                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono"
                 />
               </div>
 
@@ -415,8 +566,7 @@ export default function ApisPage() {
                     type="text"
                     value={newApiName}
                     onChange={e => setNewApiName(e.target.value)}
-                    placeholder="API Principal"
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs"
                   />
                 </div>
 
@@ -427,7 +577,7 @@ export default function ApisPage() {
                     value={newTag}
                     onChange={e => setNewTag(e.target.value)}
                     placeholder="Ex: Clientes"
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs"
                   />
                 </div>
               </div>
@@ -436,16 +586,236 @@ export default function ApisPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-semibold"
                 >
                   {isSubmitting ? 'Salvando...' : 'Salvar Endpoint'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Full Edit Endpoint Modal */}
+      {editingEp && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="max-w-2xl w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-amber-400" /> Editar Endpoint Completo
+              </h3>
+              <button onClick={() => setEditingEp(null)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-5 text-xs">
+              <div className="grid grid-cols-3 gap-3">
+                <select
+                  value={editMethod}
+                  onChange={e => setEditMethod(e.target.value as any)}
+                  className="bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 font-mono font-bold"
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+                <input
+                  type="text"
+                  required
+                  value={editPath}
+                  onChange={e => setEditPath(e.target.value)}
+                  className="col-span-2 bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-zinc-300">Resumo</label>
+                <input
+                  type="text"
+                  required
+                  value={editSummary}
+                  onChange={e => setEditSummary(e.target.value)}
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-zinc-300">Descrição Detalhada</label>
+                <textarea
+                  rows={2}
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2.5"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-zinc-300">Corpo da Requisição (JSON)</label>
+                <textarea
+                  rows={3}
+                  value={editReqBody}
+                  onChange={e => setEditReqBody(e.target.value)}
+                  placeholder='{"campo": "exemplo"}'
+                  className="w-full bg-black/50 border border-[var(--border)] rounded-lg p-2.5 font-mono"
+                />
+              </div>
+
+              {/* Parameters */}
+              <div className="space-y-2 border-t border-[var(--border)] pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-zinc-200">Parâmetros (query / path / header)</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditParams(p => [...p, { name: '', in: 'query', required: false, description: '' }])
+                    }
+                    className="text-blue-400 hover:underline font-semibold"
+                  >
+                    + Adicionar Parâmetro
+                  </button>
+                </div>
+                {editParams.map((p, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="Nome"
+                      value={p.name}
+                      onChange={e =>
+                        setEditParams(prev => prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))
+                      }
+                      className="col-span-3 bg-black/40 border border-[var(--border)] rounded px-2 py-1.5 font-mono"
+                    />
+                    <select
+                      value={p.in}
+                      onChange={e =>
+                        setEditParams(prev =>
+                          prev.map((x, i) => (i === idx ? { ...x, in: e.target.value as any } : x))
+                        )
+                      }
+                      className="col-span-2 bg-black/40 border border-[var(--border)] rounded px-2 py-1.5"
+                    >
+                      <option value="query">query</option>
+                      <option value="path">path</option>
+                      <option value="header">header</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Descrição"
+                      value={p.description}
+                      onChange={e =>
+                        setEditParams(prev =>
+                          prev.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x))
+                        )
+                      }
+                      className="col-span-5 bg-black/40 border border-[var(--border)] rounded px-2 py-1.5"
+                    />
+                    <label className="col-span-1 flex justify-center" title="Obrigatório">
+                      <input
+                        type="checkbox"
+                        checked={p.required}
+                        onChange={e =>
+                          setEditParams(prev =>
+                            prev.map((x, i) => (i === idx ? { ...x, required: e.target.checked } : x))
+                          )
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditParams(prev => prev.filter((_, i) => i !== idx))}
+                      className="col-span-1 text-zinc-500 hover:text-red-400"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Response Examples */}
+              <div className="space-y-2 border-t border-[var(--border)] pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-zinc-200">Exemplos de Resposta (200 / 400 / 404)</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditResponses(r => [...r, { statusCode: 200, description: 'Sucesso', body: '{}' }])
+                    }
+                    className="text-emerald-400 hover:underline font-semibold"
+                  >
+                    + Adicionar Resposta
+                  </button>
+                </div>
+                {editResponses.map((r, idx) => (
+                  <div key={idx} className="p-3 rounded-lg bg-black/40 border border-[var(--border)] space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={r.statusCode}
+                        onChange={e =>
+                          setEditResponses(prev =>
+                            prev.map((x, i) => (i === idx ? { ...x, statusCode: Number(e.target.value) } : x))
+                          )
+                        }
+                        className="w-20 bg-black/50 border border-[var(--border)] rounded px-2 py-1 font-mono"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Descrição (ex: Criado com sucesso)"
+                        value={r.description}
+                        onChange={e =>
+                          setEditResponses(prev =>
+                            prev.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x))
+                          )
+                        }
+                        className="flex-1 bg-black/50 border border-[var(--border)] rounded px-2 py-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditResponses(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-zinc-500 hover:text-red-400"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <textarea
+                      rows={2}
+                      placeholder='{"ok": true}'
+                      value={r.body}
+                      onChange={e =>
+                        setEditResponses(prev =>
+                          prev.map((x, i) => (i === idx ? { ...x, body: e.target.value } : x))
+                        )
+                      }
+                      className="w-full bg-black/50 border border-[var(--border)] rounded p-2 font-mono text-[11px]"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
+                <button
+                  type="button"
+                  onClick={() => setEditingEp(null)}
+                  className="px-4 py-2 rounded-lg text-zinc-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg font-semibold"
+                >
+                  {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
@@ -456,15 +826,12 @@ export default function ApisPage() {
       {/* Import OpenAPI / Swagger JSON Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-2xl w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="max-w-2xl w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <Upload className="w-5 h-5 text-emerald-400" /> Importar OpenAPI 3.0 / Swagger 2.0 (JSON)
               </h3>
-              <button
-                onClick={() => setIsImportModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg"
-              >
+              <button onClick={() => setIsImportModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -498,16 +865,16 @@ export default function ApisPage() {
                 <button
                   type="button"
                   onClick={() => setIsImportModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
+                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isImporting || !importJsonText.trim()}
-                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-emerald-600/20"
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-xs font-semibold"
                 >
-                  {isImporting ? 'Importando...' : 'Importar Endpoints para o Supabase'}
+                  {isImporting ? 'Importando...' : 'Importar Endpoints'}
                 </button>
               </div>
             </form>

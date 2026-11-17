@@ -11,6 +11,9 @@ import { projectsRoutes } from './modules/projects/projects.routes';
 import { apisRoutes } from './modules/apis/apis.routes';
 import { testerRoutes } from './modules/tester/tester.routes';
 import { keysRoutes } from './modules/keys/keys.routes';
+import { environmentsRoutes } from './modules/environments/environments.routes';
+import { monitorsRoutes } from './modules/monitors/monitors.routes';
+import { startMonitorScheduler } from './modules/monitors/monitors.service';
 
 export function buildApp() {
   const app = Fastify({
@@ -63,6 +66,8 @@ export function buildApp() {
     v1.register(apisRoutes);
     v1.register(testerRoutes);
     v1.register(keysRoutes);
+    v1.register(environmentsRoutes);
+    v1.register(monitorsRoutes);
   }, { prefix: '/api/v1' });
 
   return app;
@@ -73,6 +78,7 @@ export async function startServer() {
   try {
     const address = await app.listen({ port: env.PORT, host: env.HOST });
     app.log.info(`APIHub Backend is running at ${address}`);
+    startMonitorScheduler();
   } catch (err) {
     app.log.error(err);
     process.exit(1);

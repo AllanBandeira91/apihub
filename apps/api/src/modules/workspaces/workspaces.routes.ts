@@ -8,7 +8,8 @@ export async function workspacesRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authenticate);
 
   app.get('/bootstrap', async (request, reply) => {
-    const data = await workspacesService.bootstrap(request.user!.id);
+    const query = z.object({ workspaceId: z.string().optional() }).parse(request.query);
+    const data = await workspacesService.bootstrap(request.user!.id, query.workspaceId);
     return reply.send({
       success: true,
       data,
@@ -47,13 +48,23 @@ export async function workspacesRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { workspaceId } = request.params as { workspaceId: string };
       const input = CreateWorkspaceSchema.partial().parse(request.body);
-      const workspace = await workspacesService.update(workspaceId, input);
+      const workspace = await workspacesService.update(workspaceId, input, request.user!.id);
       return reply.send({
         success: true,
         data: { workspace },
       });
     }
   );
+
+  app.get('/:workspaceId/audit-logs', async (request, reply) => {
+    const { workspaceId } = request.params as { workspaceId: string };
+    const query = z.object({ limit: z.coerce.number().optional() }).parse(request.query);
+    const logs = await workspacesService.listAuditLogs(workspaceId, request.user!.id, query.limit);
+    return reply.send({
+      success: true,
+      data: { logs },
+    });
+  });
 
   app.get('/:workspaceId/members', async (request, reply) => {
     const { workspaceId } = request.params as { workspaceId: string };
