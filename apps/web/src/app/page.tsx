@@ -22,24 +22,24 @@ export default function HomePage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
-              href="/dashboard"
+              href="/register"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-md shadow-blue-500/20"
             >
-              Abrir Dashboard
+              Criar Conta Gratuita
+            </Link>
+            <Link
+              href="/login"
+              className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-6 py-2.5 rounded-lg text-sm font-semibold transition"
+            >
+              Entrar na Plataforma
             </Link>
             <a
-              href="https://discord.gg"
+              href="https://discord.gg/apihub"
               target="_blank"
               rel="noreferrer"
               className="bg-[#5865F2] hover:bg-[#4752c4] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-md shadow-[#5865F2]/20 flex items-center gap-2"
             >
               Comunidade Discord
-            </a>
-            <a
-              href="#tester"
-              className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-6 py-2.5 rounded-lg text-sm font-semibold transition"
-            >
-              Experimentar API Tester
             </a>
           </div>
         </div>

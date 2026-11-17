@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Lock, Mail, User, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, User, ShieldCheck, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { api } from '../../lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -12,16 +13,21 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
 
-    setTimeout(() => {
-      setIsLoading(false);
-      localStorage.setItem('apihub-user', JSON.stringify({ email, name: name || 'Allan' }));
+    try {
+      await api.auth.register({ name, email, password });
       router.push('/dashboard');
-    }, 100);
+    } catch (err: any) {
+      setError(err?.message || 'Erro ao criar conta. Verifique os dados informados.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -40,9 +46,16 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Criar Conta no APIHub</h1>
           <p className="text-xs text-zinc-400">
-            Comece a organizar suas APIs, gerar documentações OpenAPI e testar requisições
+            Cadastre-se para organizar suas APIs, gerar documentações OpenAPI e testar requisições
           </p>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -118,7 +131,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="text-center text-xs text-zinc-500 py-2">
-        APIHub • Open-source API Management • Licença MIT
+        APIHub • Plataforma de Gestão de APIs • Em Desenvolvimento
       </div>
     </div>
   );

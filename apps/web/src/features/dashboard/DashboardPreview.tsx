@@ -20,36 +20,52 @@ export function DashboardPreview() {
       testUrl.includes('localhost') ||
       testUrl.includes('127.0.0.1') ||
       testUrl.includes('192.168.') ||
-      testUrl.includes('10.');
+      testUrl.includes('10.') ||
+      testUrl.includes('172.16.') ||
+      testUrl.includes('169.254.') ||
+      testUrl.startsWith('file:') ||
+      testUrl.startsWith('ftp:');
 
-    setTimeout(() => {
+    if (isLocal) {
       setIsLoading(false);
-      if (isLocal) {
-        setTestError('SSRF Blocked: Endereços locais e IPs privados são bloqueados por segurança!');
-      } else {
-        setTestResponse({
-          status: 200,
-          statusText: 'OK',
-          durationMs: 142,
-          headers: {
-            'content-type': 'application/json',
-            server: 'gunicorn/19.9.0',
-          },
-          body: JSON.stringify(
-            {
-              url: testUrl,
-              origin: '203.0.113.195',
-              headers: {
-                'User-Agent': 'APIHub-Tester/1.0',
-                Accept: '*/*',
-              },
-            },
-            null,
-            2
-          ),
-        });
-      }
-    }, 100);
+      setTestError('SSRF Blocked: Endereços locais, redes privadas e metadados de nuvem são bloqueados por segurança!');
+      return;
+    }
+
+    const startTime = performance.now();
+    try {
+      const res = await fetch(testUrl, {
+        method: selectedMethod,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'APIHub-Tester/1.0',
+        },
+      });
+      const durationMs = Math.round(performance.now() - startTime);
+      const text = await res.text();
+      let formattedBody = text;
+      try {
+        const json = JSON.parse(text);
+        formattedBody = JSON.stringify(json, null, 2);
+      } catch {}
+
+      const resHeaders: Record<string, string> = {};
+      res.headers.forEach((val, key) => {
+        resHeaders[key] = val;
+      });
+
+      setTestResponse({
+        status: res.status,
+        statusText: res.statusText || 'OK',
+        durationMs,
+        headers: resHeaders,
+        body: formattedBody,
+      });
+    } catch (err: any) {
+      setTestError(`Falha na conexão: ${err?.message || 'Verifique se a URL suporta CORS ou está online'}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -12,52 +12,84 @@ import {
   CheckCircle2,
   Clock,
   ArrowUpRight,
-  Plus
+  Plus,
+  Inbox
 } from 'lucide-react';
+import { EndpointItem } from './apis/page';
 
 export default function DashboardHomePage() {
-  const [endpointsCount, setEndpointsCount] = useState(5);
-  const [testCount, setTestCount] = useState(0);
-  const [avgLatency, setAvgLatency] = useState(85);
-  const [recentTests, setRecentTests] = useState<any[]>([]);
+  const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [avgLatency, setAvgLatency] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Endpoints count
+    // 1. Load Real Endpoints
     const savedEp = localStorage.getItem('apihub-endpoints');
+    let epList: EndpointItem[] = [];
     if (savedEp) {
       try {
-        const epList = JSON.parse(savedEp);
-        if (Array.isArray(epList)) setEndpointsCount(epList.length);
-      } catch {}
-    }
-
-    // History count & latency
-    const savedHist = localStorage.getItem('apihub-history');
-    if (savedHist) {
-      try {
-        const histList = JSON.parse(savedHist);
-        if (Array.isArray(histList) && histList.length > 0) {
-          setTestCount(histList.length);
-          const totalMs = histList.reduce((acc: number, item: any) => acc + (item.durationMs || 0), 0);
-          setAvgLatency(Math.round(totalMs / histList.length));
-          setRecentTests(histList.slice(0, 4));
+        const parsed = JSON.parse(savedEp);
+        if (Array.isArray(parsed)) {
+          epList = parsed;
+          setEndpoints(parsed);
         }
       } catch {}
     }
+
+    // 2. Load Real Test History
+    const savedHist = localStorage.getItem('apihub-history');
+    if (savedHist) {
+      try {
+        const parsedHist = JSON.parse(savedHist);
+        if (Array.isArray(parsedHist)) {
+          setHistory(parsedHist);
+          if (parsedHist.length > 0) {
+            const totalMs = parsedHist.reduce((acc: number, item: any) => acc + (item.durationMs || 0), 0);
+            setAvgLatency(Math.round(totalMs / parsedHist.length));
+          }
+        }
+      } catch {}
+    }
+
+    setIsLoaded(true);
   }, []);
 
-  const stats = [
-    { label: 'APIs Registradas', value: '3', change: 'Workspaces ativos', icon: FolderGit2, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Endpoints Mapeados', value: String(endpointsCount), change: '100% documentados', icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Testes Executados', value: String(testCount), change: testCount > 0 ? 'Métricas em tempo real' : 'Aguardando testes', icon: Activity, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    { label: 'Latência Média', value: `${avgLatency} ms`, change: 'Tempo de resposta médio', icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  ];
+  const uniqueApis = new Set(endpoints.map(e => e.apiName)).size;
 
-  const recentEndpoints = [
-    { method: 'GET', path: '/v1/users/profile', api: 'Auth & Accounts API', status: 200, latency: '48ms', time: 'Há 5 minutos' },
-    { method: 'POST', path: '/v1/products/create', api: 'E-commerce Catalog', status: 201, latency: '124ms', time: 'Há 18 minutos' },
-    { method: 'GET', path: '/v1/orders/summary', api: 'Orders & Payments', status: 200, latency: '92ms', time: 'Há 1 hora' },
-    { method: 'DELETE', path: '/v1/keys/:keyId', api: 'APIHub Internal Gateway', status: 204, latency: '65ms', time: 'Há 3 horas' },
+  const stats = [
+    {
+      label: 'APIs Registradas',
+      value: String(uniqueApis),
+      change: uniqueApis > 0 ? `${uniqueApis} agrupamento(s)` : 'Nenhuma API criada',
+      icon: FolderGit2,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10'
+    },
+    {
+      label: 'Endpoints Mapeados',
+      value: String(endpoints.length),
+      change: endpoints.length > 0 ? 'Rotas documentadas' : 'Aguardando endpoints',
+      icon: BookOpen,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10'
+    },
+    {
+      label: 'Testes Executados',
+      value: String(history.length),
+      change: history.length > 0 ? 'Requisições registradas' : 'Sem histórico',
+      icon: Activity,
+      color: 'text-purple-400',
+      bg: 'bg-purple-500/10'
+    },
+    {
+      label: 'Latência Média',
+      value: avgLatency > 0 ? `${avgLatency} ms` : '0 ms',
+      change: history.length > 0 ? 'Tempo de resposta médio' : 'Sem medições',
+      icon: Clock,
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/10'
+    },
   ];
 
   return (
@@ -67,7 +99,7 @@ export default function DashboardHomePage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Painel de Controle</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Visão consolidada das suas APIs, saúde dos endpoints e métricas em tempo real.
+            Visão consolidada das suas APIs, endpoints mapeados e métricas reais de teste.
           </p>
         </div>
 
@@ -110,71 +142,92 @@ export default function DashboardHomePage() {
         })}
       </div>
 
-      {/* Main Grid: Recent Activity & Quick Health */}
+      {/* Main Grid: Real Activity & Quick OpenAPI */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Endpoints / Activity */}
+        {/* Real Test History */}
         <div className="lg:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
             <h2 className="font-bold text-base flex items-center gap-2">
               <Activity className="w-4 h-4 text-blue-400" /> Atividade Recente de Testes
             </h2>
             <Link href="/dashboard/tester" className="text-xs text-blue-400 hover:underline flex items-center gap-1">
-              Ver histórico completo <ArrowUpRight className="w-3 h-3" />
+              Abrir Tester <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
 
-          <div className="divide-y divide-[var(--border)]">
-            {recentEndpoints.map((item, i) => (
-              <div key={i} className="py-3 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
-                      item.method === 'GET'
-                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                        : item.method === 'POST'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                    }`}
-                  >
-                    {item.method}
-                  </span>
-                  <div>
-                    <p className="font-mono font-semibold text-zinc-200">{item.path}</p>
-                    <p className="text-[10px] text-zinc-500">{item.api}</p>
+          {isLoaded && history.length === 0 ? (
+            <div className="py-10 text-center space-y-3 text-zinc-500">
+              <Inbox className="w-8 h-8 mx-auto text-zinc-600" />
+              <p className="text-xs">Nenhum teste executado ainda.</p>
+              <Link
+                href="/dashboard/tester"
+                className="text-xs text-blue-400 hover:underline inline-block font-semibold"
+              >
+                Disparar primeira requisição no API Tester →
+              </Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {history.slice(0, 5).map((item, i) => (
+                <div key={i} className="py-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <span
+                      className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
+                        item.method === 'GET'
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                          : item.method === 'POST'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                      }`}
+                    >
+                      {item.method}
+                    </span>
+                    <span className="font-mono font-semibold text-zinc-200 truncate">{item.url}</span>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4 text-right">
-                  <div>
-                    <span className="font-bold text-emerald-400">{item.status} OK</span>
-                    <p className="text-[10px] text-zinc-500">{item.latency}</p>
+                  <div className="flex items-center gap-4 text-right flex-shrink-0">
+                    <div>
+                      <span
+                        className={`font-bold ${
+                          item.status >= 200 && item.status < 300
+                            ? 'text-emerald-400'
+                            : item.status >= 400
+                            ? 'text-rose-400'
+                            : 'text-amber-400'
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                      <p className="text-[10px] text-zinc-500">{item.durationMs}ms</p>
+                    </div>
                   </div>
-                  <span className="text-zinc-600 hidden sm:inline">{item.time}</span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* OpenAPI & Security Snapshot */}
+        {/* OpenAPI Export Snapshot */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-5">
           <h2 className="font-bold text-base flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-emerald-400" /> Exportação OpenAPI
+            <BookOpen className="w-4 h-4 text-emerald-400" /> Exportação OpenAPI 3.0
           </h2>
-          <p className="text-xs text-zinc-400">
-            A especificação OpenAPI 3.0 é gerada dinamicamente com base nas rotas cadastradas.
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            A especificação OpenAPI 3.0 é gerada dinamicamente a partir dos endpoints cadastrados.
           </p>
 
           <div className="p-3.5 rounded-lg bg-black/40 border border-[var(--border)] space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-400">Status da Spec:</span>
               <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Válida (OpenAPI 3.0.3)
+                <CheckCircle2 className="w-3.5 h-3.5" /> Pronta para Exportação
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-zinc-400">Rotas Exportáveis:</span>
-              <span className="font-mono font-bold">18 caminhos</span>
+              <span className="font-mono font-bold text-white">
+                {endpoints.length} rota(s)
+              </span>
             </div>
           </div>
 
@@ -182,7 +235,7 @@ export default function DashboardHomePage() {
             href="/dashboard/docs"
             className="w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition"
           >
-            Abrir Visualizador de Documentação
+            Visualizar Documentação
           </Link>
         </div>
       </div>

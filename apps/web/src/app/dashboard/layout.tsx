@@ -18,6 +18,7 @@ import {
   FolderGit2
 } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { api, getStoredUser } from '../../lib/api';
 
 export default function DashboardLayout({
   children,
@@ -26,21 +27,35 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string }>({ name: 'Allan', email: 'allan@apihub.dev' });
-  const [currentWorkspace, setCurrentWorkspace] = useState('Allan Workspace');
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [currentWorkspace, setCurrentWorkspace] = useState('Meu Workspace');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('apihub-user');
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {}
+    const stored = getStoredUser();
+    if (!stored) {
+      router.push('/login');
+      return;
     }
-  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('apihub-user');
+    setUser(stored);
+    setCurrentWorkspace(`${stored.name || 'Meu'} Workspace`);
+    setIsCheckingAuth(false);
+
+    // Refresh user profile asynchronously from backend
+    api.auth.getMe().then(remoteUser => {
+      if (remoteUser) {
+        setUser(remoteUser);
+        if (remoteUser.memberships?.[0]?.workspace?.name) {
+          setCurrentWorkspace(remoteUser.memberships[0].workspace.name);
+        }
+      }
+    }).catch(() => {});
+  }, [router]);
+
+  const handleLogout = async () => {
+    await api.auth.logout();
     router.push('/login');
   };
 
@@ -51,6 +66,19 @@ export default function DashboardLayout({
     { label: 'Documentação OpenAPI', href: '/dashboard/docs', icon: BookOpen },
     { label: 'Gerenciador de Chaves', href: '/dashboard/keys', icon: Key },
   ];
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)] text-[var(--foreground)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-zinc-400">Carregando workspace seguro...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const initialLetter = (user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase();
 
   return (
     <div className="min-h-screen flex bg-[var(--background)] text-[var(--foreground)]">
@@ -70,17 +98,16 @@ export default function DashboardLayout({
             </Link>
 
             <div className="pt-2">
-              <div className="p-2.5 rounded-xl border border-[var(--border)] bg-black/30 flex items-center justify-between text-xs cursor-pointer hover:border-zinc-700 transition">
+              <div className="p-2.5 rounded-xl border border-[var(--border)] bg-black/30 flex items-center justify-between text-xs hover:border-zinc-700 transition">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded bg-purple-600/30 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold">
-                    W
+                  <div className="w-6 h-6 rounded bg-purple-600/30 text-purple-400 border border-purple-500/40 flex items-center justify-center font-bold text-xs">
+                    {initialLetter}
                   </div>
                   <div className="truncate">
                     <p className="font-semibold text-zinc-200 truncate">{currentWorkspace}</p>
                     <p className="text-[10px] text-zinc-500">Proprietário (Owner)</p>
                   </div>
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
               </div>
             </div>
           </div>
@@ -109,20 +136,20 @@ export default function DashboardLayout({
         </div>
 
         {/* User Card & Logout */}
-        <div className="space-y-3 pt-4 border-t border-[var(--border)]">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center font-bold text-sm">
-                {user.name.charAt(0).toUpperCase()}
+        <div className="pt-4 border-t border-[var(--border)]">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-black/30 border border-[var(--border)]">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300">
+                {initialLetter}
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold truncate">{user.name}</p>
-                <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
+                <p className="text-xs font-semibold text-zinc-200 truncate">{user?.name || 'Desenvolvedor'}</p>
+                <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              title="Sair"
+              title="Sair da Conta"
               className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-black/20 transition"
             >
               <LogOut className="w-4 h-4" />
@@ -175,6 +202,13 @@ export default function DashboardLayout({
                 <span>{item.label}</span>
               </Link>
             ))}
+            <button
+              onClick={handleLogout}
+              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/20"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sair da Conta</span>
+            </button>
           </div>
         )}
 

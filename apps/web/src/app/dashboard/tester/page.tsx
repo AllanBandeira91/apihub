@@ -31,12 +31,12 @@ interface HistoryItem {
 
 export default function TesterPage() {
   const [method, setMethod] = useState<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>('GET');
-  const [url, setUrl] = useState('https://httpbin.org/get');
+  const [url, setUrl] = useState('');
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body'>('params');
   const [headers, setHeaders] = useState<HeaderPair[]>([
     { key: 'Accept', value: 'application/json' },
   ]);
-  const [requestBody, setRequestBody] = useState('{\n  "name": "Novo Produto",\n  "price": 99.9\n}');
+  const [requestBody, setRequestBody] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);
@@ -45,13 +45,21 @@ export default function TesterPage() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  // Load history from localStorage
+  // Load history from localStorage & query params
   useEffect(() => {
     const saved = localStorage.getItem('apihub-history');
     if (saved) {
       try {
         setHistory(JSON.parse(saved));
       } catch {}
+    }
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const qUrl = params.get('url');
+      const qMethod = params.get('method');
+      if (qUrl) setUrl(qUrl);
+      if (qMethod) setMethod(qMethod as any);
     }
   }, []);
 

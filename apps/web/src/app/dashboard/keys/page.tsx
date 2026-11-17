@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Key, Plus, Shield, Trash2, Copy, Check, AlertTriangle, X } from 'lucide-react';
+import { Key, Plus, Shield, Trash2, Copy, Check, AlertTriangle, X, Inbox } from 'lucide-react';
 
-interface ApiKeyItem {
+export interface ApiKeyItem {
   id: string;
   name: string;
   keyPrefix: string;
@@ -13,34 +13,18 @@ interface ApiKeyItem {
 }
 
 export default function KeysPage() {
-  const defaultKeys: ApiKeyItem[] = [
-    {
-      id: '1',
-      name: 'CI/CD GitHub Actions Pipeline',
-      keyPrefix: 'ah_live_89fa7b...',
-      permissions: ['read', 'write'],
-      createdAt: '15/11/2026',
-      revokedAt: null,
-    },
-    {
-      id: '2',
-      name: 'Chave de Leitura Externa (Mobile App)',
-      keyPrefix: 'ah_live_12bc4d...',
-      permissions: ['read'],
-      createdAt: '12/11/2026',
-      revokedAt: '14/11/2026',
-    },
-  ];
-
-  const [keys, setKeys] = useState<ApiKeyItem[]>(defaultKeys);
+  const [keys, setKeys] = useState<ApiKeyItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('apihub-keys');
     if (saved) {
       try {
-        setKeys(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setKeys(parsed);
       } catch {}
     }
+    setIsLoaded(true);
   }, []);
 
   const saveKeys = (items: ApiKeyItem[]) => {
@@ -57,17 +41,22 @@ export default function KeysPage() {
     e.preventDefault();
     if (!newKeyName) return;
 
-    // Generate random secret simulation
-    const randomHex = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    // Generate real secure random secret
+    const bytes = new Uint8Array(24);
+    window.crypto.getRandomValues(bytes);
+    const randomHex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
     const fullSecret = `ah_live_${randomHex}`;
-    const prefix = fullSecret.slice(0, 14) + '...';
+    const prefix = fullSecret.slice(0, 16) + '...';
+
+    const now = new Date();
+    const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
 
     const newKey: ApiKeyItem = {
       id: Date.now().toString(),
       name: newKeyName,
       keyPrefix: prefix,
       permissions: ['read', 'write'],
-      createdAt: 'Hoje',
+      createdAt: formattedDate,
       revokedAt: null,
     };
 
@@ -78,7 +67,9 @@ export default function KeysPage() {
   };
 
   const handleRevoke = (id: string) => {
-    saveKeys(keys.map(k => (k.id === id ? { ...k, revokedAt: 'Hoje' } : k)));
+    const now = new Date();
+    const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+    saveKeys(keys.map(k => (k.id === id ? { ...k, revokedAt: formattedDate } : k)));
   };
 
   const handleCopySecret = () => {
@@ -96,7 +87,7 @@ export default function KeysPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Gerenciador de API Keys</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Chaves criptografadas para autenticar chamadas à API do APIHub com hash SHA-256 no banco de dados.
+            Chaves criptografadas para autenticar chamadas à API com hash SHA-256 no banco de dados.
           </p>
         </div>
 
@@ -108,133 +99,167 @@ export default function KeysPage() {
         </button>
       </div>
 
-      {/* Secret Key One-time Reveal Modal */}
+      {/* Secret Display Banner (shown only once upon creation) */}
       {createdSecret && (
-        <div className="p-6 rounded-2xl bg-amber-950/30 border border-amber-800 text-amber-200 shadow-2xl space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h3 className="font-bold text-base text-amber-300">Chave Criada com Sucesso!</h3>
-              <p className="text-xs text-amber-200/90">
-                Copie a chave abaixo agora. Por motivos de segurança estrita, <strong>ela nunca mais poderá ser visualizada</strong> após fechar este aviso (apenas o hash é armazenado).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-black/60 border border-amber-800/80 p-3 rounded-lg">
-            <code className="text-xs font-mono text-emerald-400 flex-1 truncate">{createdSecret}</code>
-            <button
-              onClick={handleCopySecret}
-              className="bg-amber-600 hover:bg-amber-700 text-black font-semibold text-xs px-3 py-1.5 rounded flex items-center gap-1.5 transition"
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copiada!' : 'Copiar Chave'}</span>
-            </button>
-          </div>
-
-          <div className="text-right">
+        <div className="p-5 rounded-2xl border border-amber-600/50 bg-amber-950/20 space-y-3 shadow-xl animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
+              <AlertTriangle className="w-4 h-4" /> Copie sua Chave de API Agora
+            </span>
             <button
               onClick={() => setCreatedSecret(null)}
-              className="text-xs underline text-amber-400 hover:text-white"
+              className="text-zinc-400 hover:text-white text-xs"
             >
-              Já copiei e salvei a chave com segurança (Fechar)
+              Fechar
+            </button>
+          </div>
+          <p className="text-xs text-zinc-300 leading-relaxed">
+            Por razões de segurança estrita e proteção contra vazamento, este segredo completo <strong>nunca mais será exibido</strong>. Apenas o hash SHA-256 é armazenado no servidor.
+          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={createdSecret}
+              className="w-full bg-black/60 border border-amber-800/80 rounded-lg px-3 py-2 text-xs font-mono text-amber-300 focus:outline-none"
+            />
+            <button
+              onClick={handleCopySecret}
+              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-black font-bold text-xs flex items-center gap-1.5 transition flex-shrink-0"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copiado!' : 'Copiar'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Keys List */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-xl">
-        <div className="divide-y divide-[var(--border)]">
-          {keys.map(k => (
-            <div
-              key={k.id}
-              className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-black/20 transition"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                  <Key className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm text-zinc-100">{k.name}</p>
+      {/* Keys List or Empty State */}
+      {isLoaded && keys.length === 0 ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center space-y-4 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
+            <Inbox className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="font-bold text-lg text-white">Nenhuma chave de API criada</h3>
+            <p className="text-xs text-zinc-400">
+              Gere chaves de API para autenticar requisições automatizadas, pipelines de CI/CD e integrações de terceiros de forma segura.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
+          >
+            <Plus className="w-4 h-4" /> Criar Minha Primeira Chave
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-xl">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-black/30 border-b border-[var(--border)] text-zinc-400 uppercase tracking-wider font-semibold">
+              <tr>
+                <th className="p-4">Identificação / Nome</th>
+                <th className="p-4">Prefixo Público</th>
+                <th className="p-4">Permissões</th>
+                <th className="p-4">Criada em</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)] text-zinc-300">
+              {keys.map(k => (
+                <tr key={k.id} className="hover:bg-black/20 transition">
+                  <td className="p-4 font-semibold text-white">{k.name}</td>
+                  <td className="p-4 font-mono text-zinc-400">{k.keyPrefix}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1">
+                      {k.permissions.map(p => (
+                        <span
+                          key={p}
+                          className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] uppercase font-mono"
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-4 text-zinc-400">{k.createdAt}</td>
+                  <td className="p-4">
                     {k.revokedAt ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950/60 text-red-400 border border-red-800">
-                        Revogada
+                      <span className="text-rose-400 font-semibold flex items-center gap-1">
+                        Revogada em {k.revokedAt}
                       </span>
                     ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800">
-                        Ativa
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Ativa
                       </span>
                     )}
-                  </div>
-                  <p className="text-xs font-mono text-zinc-500 mt-0.5">{k.keyPrefix}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs text-zinc-400 self-end sm:self-center">
-                <div className="flex items-center gap-1">
-                  {k.permissions.map(p => (
-                    <span key={p} className="px-2 py-0.5 rounded bg-black/40 border border-zinc-800 text-[10px]">
-                      {p}
-                    </span>
-                  ))}
-                </div>
-
-                <span>Criada: {k.createdAt}</span>
-
-                {!k.revokedAt && (
-                  <button
-                    onClick={() => handleRevoke(k.id)}
-                    className="p-1.5 rounded-lg border border-red-900/50 hover:bg-red-600 hover:text-white transition text-red-400"
-                    title="Revogar chave"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+                  </td>
+                  <td className="p-4 text-right">
+                    {!k.revokedAt && (
+                      <button
+                        onClick={() => handleRevoke(k.id)}
+                        className="text-xs text-rose-400 hover:underline hover:text-rose-300 font-medium"
+                      >
+                        Revogar Chave
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
 
-      {/* Modal Criar Chave */}
+      {/* Modal Nova Chave */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+          <div className="max-w-md w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h2 className="font-bold text-lg">Nova API Key</h2>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Key className="w-5 h-5 text-blue-400" /> Nova API Key
+              </h3>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateKey} className="space-y-4 text-xs">
-              <div>
-                <label className="font-semibold text-zinc-300 block mb-1">Identificador / Nome da Chave</label>
+            <form onSubmit={handleCreateKey} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Nome ou Finalidade da Chave</label>
                 <input
                   type="text"
                   required
                   value={newKeyName}
                   onChange={e => setNewKeyName(e.target.value)}
-                  placeholder="Ex: Integração Backend Produção"
-                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2.5 text-sm"
+                  placeholder="Ex: Servidor de Produção / Pipeline CI"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border)]">
+              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+                <p className="font-semibold text-zinc-300">Permissões Padrão:</p>
+                <p>• Leitura e escrita nos endpoints autorizados do seu workspace.</p>
+                <p>• Criptografada com SHA-256 no banco de dados.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-[var(--border)] hover:bg-black/20 font-semibold"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 shadow-md shadow-blue-600/20"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
                 >
-                  Gerar Chave Criptografada
+                  Gerar Chave Segura
                 </button>
               </div>
             </form>

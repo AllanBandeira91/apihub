@@ -12,10 +12,12 @@ import {
   Check,
   X,
   ExternalLink,
-  Code
+  Code,
+  Layers,
+  Inbox
 } from 'lucide-react';
 
-interface EndpointItem {
+export interface EndpointItem {
   id: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
@@ -26,23 +28,18 @@ interface EndpointItem {
 }
 
 export default function ApisPage() {
-  const defaultEndpoints: EndpointItem[] = [
-    { id: '1', method: 'GET', path: '/v1/users', summary: 'Lista todos os usuários com paginação', tags: ['Usuários'], apiName: 'Core Auth API', parametersCount: 2 },
-    { id: '2', method: 'POST', path: '/v1/users', summary: 'Cadastra um novo usuário no sistema', tags: ['Usuários'], apiName: 'Core Auth API', parametersCount: 1 },
-    { id: '3', method: 'GET', path: '/v1/products', summary: 'Busca catálogo de produtos ativos', tags: ['Catálogo'], apiName: 'Storefront API', parametersCount: 3 },
-    { id: '4', method: 'POST', path: '/v1/orders', summary: 'Gera um pedido com itens no carrinho', tags: ['Vendas'], apiName: 'Storefront API', parametersCount: 1 },
-    { id: '5', method: 'DELETE', path: '/v1/keys/:keyId', summary: 'Revoga chave de API permanentemente', tags: ['Segurança'], apiName: 'Core Auth API', parametersCount: 1 },
-  ];
-
-  const [endpoints, setEndpoints] = useState<EndpointItem[]>(defaultEndpoints);
+  const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('apihub-endpoints');
     if (saved) {
       try {
-        setEndpoints(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setEndpoints(parsed);
       } catch {}
     }
+    setIsLoaded(true);
   }, []);
 
   const saveEndpoints = (items: EndpointItem[]) => {
@@ -59,7 +56,7 @@ export default function ApisPage() {
   const [newPath, setNewPath] = useState('');
   const [newSummary, setNewSummary] = useState('');
   const [newTag, setNewTag] = useState('');
-  const [newApiName, setNewApiName] = useState('Core Auth API');
+  const [newApiName, setNewApiName] = useState('API Principal');
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +69,7 @@ export default function ApisPage() {
       path: formattedPath,
       summary: newSummary || `Endpoint ${formattedPath}`,
       tags: newTag ? [newTag] : ['Geral'],
-      apiName: newApiName,
+      apiName: newApiName || 'API Principal',
       parametersCount: 0,
     };
 
@@ -101,9 +98,9 @@ export default function ApisPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">APIs & Endpoints</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Catálogo de APIs & Endpoints</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Cadastre rotas, documente parâmetros, responses e sincronize com a especificação OpenAPI.
+            Cadastre rotas, métodos HTTP, parâmetros e documentações exportáveis em OpenAPI 3.0.
           </p>
         </div>
 
@@ -111,7 +108,7 @@ export default function ApisPage() {
           onClick={() => setIsModalOpen(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
         >
-          <Plus className="w-4 h-4" /> Cadastrar Endpoint
+          <Plus className="w-4 h-4" /> Novo Endpoint
         </button>
       </div>
 
@@ -123,117 +120,137 @@ export default function ApisPage() {
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Filtrar por rota, resumo ou API..."
-            className="w-full bg-black/40 border border-[var(--border)] rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+            placeholder="Pesquisar por rota, descrição ou nome da API..."
+            className="w-full bg-black/40 border border-[var(--border)] rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          {['ALL', 'GET', 'POST', 'PUT', 'DELETE'].map(m => (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {['ALL', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(method => (
             <button
-              key={m}
-              onClick={() => setSelectedMethod(m)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                selectedMethod === m
-                  ? 'bg-blue-600 border-blue-500 text-white'
+              key={method}
+              onClick={() => setSelectedMethod(method)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition border ${
+                selectedMethod === method
+                  ? 'bg-blue-600 text-white border-blue-500'
                   : 'bg-[var(--card)] border-[var(--border)] text-zinc-400 hover:text-white'
               }`}
             >
-              {m}
+              {method}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Endpoints Table */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden shadow-xl">
-        <div className="divide-y divide-[var(--border)]">
-          {filteredEndpoints.length === 0 ? (
-            <div className="p-12 text-center text-sm text-zinc-500">
-              Nenhum endpoint encontrado com os filtros selecionados.
-            </div>
-          ) : (
-            filteredEndpoints.map(ep => (
-              <div
-                key={ep.id}
-                className="p-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-black/20 transition"
-              >
-                <div className="flex items-center gap-4">
-                  <span
-                    className={`font-mono font-bold px-2.5 py-1 rounded text-xs ${
-                      ep.method === 'GET'
-                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                        : ep.method === 'POST'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                        : ep.method === 'DELETE'
-                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                    }`}
-                  >
-                    {ep.method}
-                  </span>
+      {/* Endpoints List or Empty State */}
+      {isLoaded && filteredEndpoints.length === 0 ? (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-12 text-center space-y-4 shadow-xl">
+          <div className="w-14 h-14 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-400">
+            <Inbox className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="font-bold text-lg text-white">Nenhum endpoint cadastrado</h3>
+            <p className="text-xs text-zinc-400">
+              {endpoints.length === 0
+                ? 'Seu catálogo de APIs está limpo e pronto para receber suas rotas. Cadastre seu primeiro endpoint para começar.'
+                : 'Nenhum endpoint corresponde aos filtros de busca selecionados.'}
+            </p>
+          </div>
+          {endpoints.length === 0 && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 transition"
+            >
+              <Plus className="w-4 h-4" /> Cadastrar Primeiro Endpoint
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {filteredEndpoints.map(ep => (
+            <div
+              key={ep.id}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-zinc-700 transition shadow-sm"
+            >
+              <div className="flex items-start sm:items-center gap-3">
+                <span
+                  className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs ${
+                    ep.method === 'GET'
+                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                      : ep.method === 'POST'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : ep.method === 'PUT' || ep.method === 'PATCH'
+                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                  }`}
+                >
+                  {ep.method}
+                </span>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono font-bold text-sm text-zinc-100">{ep.path}</p>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                        {ep.apiName}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">{ep.summary}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 self-end sm:self-center">
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    {ep.tags.map(t => (
-                      <span key={t} className="px-2 py-0.5 rounded bg-black/40 border border-zinc-800 text-[10px]">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-sm text-zinc-100">{ep.path}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
+                      {ep.apiName}
+                    </span>
+                    {ep.tags?.map((t, idx) => (
+                      <span
+                        key={idx}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-blue-950/40 text-blue-300 border border-blue-900/50"
+                      >
                         {t}
                       </span>
                     ))}
                   </div>
-
-                  <Link
-                    href={`/dashboard/tester?url=${encodeURIComponent(`https://api.exemplo.com${ep.path}`)}&method=${ep.method}`}
-                    className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-blue-600 hover:text-white transition text-zinc-400"
-                    title="Testar requisição"
-                  >
-                    <Terminal className="w-4 h-4" />
-                  </Link>
-
-                  <button
-                    onClick={() => handleDelete(ep.id)}
-                    className="p-1.5 rounded-lg border border-[var(--border)] hover:bg-red-600 hover:text-white transition text-zinc-400"
-                    title="Excluir endpoint"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <p className="text-xs text-zinc-400 mt-0.5">{ep.summary}</p>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </div>
 
-      {/* Modal Cadastrar Endpoint */}
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <Link
+                  href={`/dashboard/tester?url=${encodeURIComponent(ep.path)}&method=${ep.method}`}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-blue-400" /> Testar
+                </Link>
+
+                <button
+                  onClick={() => handleDelete(ep.id)}
+                  title="Excluir endpoint"
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-950/20 border border-transparent hover:border-red-900/50 transition"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create Endpoint Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-2xl space-y-5 animate-in fade-in duration-200">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h2 className="font-bold text-lg">Novo Endpoint</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Plus className="w-5 h-5 text-blue-400" /> Novo Endpoint
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="space-y-4 text-xs">
+            <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="font-semibold text-zinc-300 block mb-1">Método HTTP</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Método HTTP</label>
                   <select
                     value={newMethod}
                     onChange={e => setNewMethod(e.target.value as any)}
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2 font-mono font-bold"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-blue-500"
                   >
                     <option value="GET">GET</option>
                     <option value="POST">POST</option>
@@ -243,70 +260,67 @@ export default function ApisPage() {
                   </select>
                 </div>
 
-                <div className="col-span-2">
-                  <label className="font-semibold text-zinc-300 block mb-1">Caminho / Rota</label>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Caminho da Rota</label>
                   <input
                     type="text"
                     required
                     value={newPath}
                     onChange={e => setNewPath(e.target.value)}
                     placeholder="/v1/recurso"
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2 font-mono"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="font-semibold text-zinc-300 block mb-1">Resumo / Descrição curta</label>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">Descrição / Resumo</label>
                 <input
                   type="text"
-                  required
                   value={newSummary}
                   onChange={e => setNewSummary(e.target.value)}
-                  placeholder="Ex: Retorna os dados do cliente por ID"
-                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2"
+                  placeholder="Ex: Retorna listagem paginada de clientes"
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-zinc-300 block mb-1">Tag / Módulo</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Nome da API</label>
+                  <input
+                    type="text"
+                    value={newApiName}
+                    onChange={e => setNewApiName(e.target.value)}
+                    placeholder="API Principal"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-zinc-300">Tag / Módulo</label>
                   <input
                     type="text"
                     value={newTag}
                     onChange={e => setNewTag(e.target.value)}
-                    placeholder="Ex: Autenticação"
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2"
+                    placeholder="Ex: Clientes"
+                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
                   />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-zinc-300 block mb-1">Vincular à API</label>
-                  <select
-                    value={newApiName}
-                    onChange={e => setNewApiName(e.target.value)}
-                    className="w-full bg-black/40 border border-[var(--border)] rounded-lg p-2"
-                  >
-                    <option value="Core Auth API">Core Auth API</option>
-                    <option value="Storefront API">Storefront API</option>
-                    <option value="Payments Gateway">Payments Gateway</option>
-                  </select>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border)]">
+              <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-[var(--border)] hover:bg-black/20 font-semibold"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition shadow-md shadow-blue-600/20"
                 >
-                  <Check className="w-4 h-4" /> Salvar Endpoint
+                  Salvar Endpoint
                 </button>
               </div>
             </form>

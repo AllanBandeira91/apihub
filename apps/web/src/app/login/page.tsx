@@ -3,27 +3,30 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Lock, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { api } from '../../lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('demo@apihub.dev');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    // Mock/Dev instant login simulation
-    setTimeout(() => {
-      setIsLoading(false);
-      localStorage.setItem('apihub-user', JSON.stringify({ email, name: email.split('@')[0] }));
+    try {
+      await api.auth.login({ email, password });
       router.push('/dashboard');
-    }, 100);
+    } catch (err: any) {
+      setError(err?.message || 'E-mail ou senha incorretos.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,7 +50,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-lg bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-2 animate-in fade-in">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -109,7 +112,7 @@ export default function LoginPage() {
       </div>
 
       <div className="text-center text-xs text-zinc-500 py-2">
-        APIHub • Open-source API Management • Licença MIT
+        APIHub • Plataforma de Gestão de APIs • Em Desenvolvimento
       </div>
     </div>
   );
