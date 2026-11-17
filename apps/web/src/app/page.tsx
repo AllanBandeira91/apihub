@@ -34,7 +34,7 @@ export default function HomePage() {
               Entrar na Plataforma
             </Link>
             <a
-              href="https://discord.gg/apihub"
+              href="https://discord.gg/wBTznxGeWd"
               target="_blank"
               rel="noreferrer"
               className="bg-[#5865F2] hover:bg-[#4752c4] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-md shadow-[#5865F2]/20 flex items-center gap-2"
@@ -125,7 +125,7 @@ export default function HomePage() {
           <div className="space-y-1 text-center sm:text-left">
             <p>CloudAPI • Em Desenvolvimento • Acesso Antecipado</p>
             <p className="text-[11px] text-zinc-500">
-              Suporte oficial: <a href="mailto:apihubsupport@gmail.com" className="text-zinc-400 hover:text-white underline">apihubsupport@gmail.com</a> • <a href="https://discord.gg/apihub" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Discord da Comunidade</a>
+              Suporte oficial: <a href="mailto:apihubsupport@gmail.com" className="text-zinc-400 hover:text-white underline">apihubsupport@gmail.com</a> • <a href="https://discord.gg/wBTznxGeWd" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Discord da Comunidade</a>
             </p>
           </div>
 

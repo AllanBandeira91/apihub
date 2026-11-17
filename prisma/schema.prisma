@@ -79,6 +79,7 @@ model Project {
   requestLogs  RequestLog[]
   environments Environment[]
   monitors     UptimeMonitor[]
+  testCases    TestCase[]
 
   @@unique([workspaceId, slug])
   @@map("projects")
@@ -226,9 +227,10 @@ model UptimeMonitor {
   url             String
   method          HttpMethod    @default(GET)
   intervalMinutes Int           @default(5)
-  expectedStatus  Int           @default(200)
-  alertEmail      String
-  isActive        Boolean       @default(true)
+  expectedStatus    Int           @default(200)
+  alertEmail        String
+  discordWebhookUrl String?
+  isActive          Boolean       @default(true)
   lastStatus      String        @default("PENDING") // PENDING | UP | DOWN
   lastStatusCode  Int?
   lastLatencyMs   Int?
@@ -256,4 +258,28 @@ model UptimeCheck {
 
   @@index([monitorId, checkedAt])
   @@map("uptime_checks")
+}
+
+model TestCase {
+  id             String     @id @default(uuid())
+  projectId      String
+  name           String
+  method         HttpMethod @default(GET)
+  url            String
+  headers        Json       @default("{}")
+  body           String?
+  expectedStatus Int        @default(200)
+  maxLatencyMs   Int?
+  bodyContains   String?
+  lastPassed     Boolean?
+  lastStatusCode Int?
+  lastLatencyMs  Int?
+  lastError      String?
+  lastRunAt      DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  project        Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("test_cases")
 }

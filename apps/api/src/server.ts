@@ -13,6 +13,9 @@ import { testerRoutes } from './modules/tester/tester.routes';
 import { keysRoutes } from './modules/keys/keys.routes';
 import { environmentsRoutes } from './modules/environments/environments.routes';
 import { monitorsRoutes } from './modules/monitors/monitors.routes';
+import { mockRoutes } from './modules/mock/mock.routes';
+import { runnerRoutes } from './modules/runner/runner.routes';
+import { externalRoutes } from './modules/external/external.routes';
 import { startMonitorScheduler } from './modules/monitors/monitors.service';
 
 export function buildApp() {
@@ -68,6 +71,9 @@ export function buildApp() {
     v1.register(keysRoutes);
     v1.register(environmentsRoutes);
     v1.register(monitorsRoutes);
+    v1.register(mockRoutes);
+    v1.register(runnerRoutes);
+    v1.register(externalRoutes);
   }, { prefix: '/api/v1' });
 
   return app;

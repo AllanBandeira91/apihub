@@ -19,7 +19,8 @@ import {
   Activity,
   BarChart3,
   Plus,
-  Check
+  Check,
+  FlaskConical
 } from 'lucide-react';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { api, getStoredUser, setActiveWorkspaceId, getActiveWorkspaceId } from '../../lib/api';
@@ -130,6 +131,7 @@ export default function DashboardLayout({
     { label: 'Visão Geral', href: '/dashboard', icon: LayoutDashboard },
     { label: 'APIs & Endpoints', href: '/dashboard/apis', icon: FolderGit2 },
     { label: 'API Tester Seguro', href: '/dashboard/tester', icon: Terminal },
+    { label: 'Bateria de Testes', href: '/dashboard/runner', icon: FlaskConical },
     { label: 'Ambientes & Variáveis', href: '/dashboard/environments', icon: Sliders },
     { label: 'Monitoramento', href: '/dashboard/monitors', icon: Activity },
     { label: 'Métricas & Auditoria', href: '/dashboard/analytics', icon: BarChart3 },

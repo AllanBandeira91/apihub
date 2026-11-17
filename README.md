@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
 [![Fastify](https://img.shields.io/badge/Fastify-4.28-black.svg)](https://fastify.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
-[![Discord](https://img.shields.io/badge/Discord-Comunidade-5865F2.svg?logo=discord&logoColor=white)](#)
+[![Discord](https://img.shields.io/badge/Discord-Comunidade-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/wBTznxGeWd)
 [![Suporte](https://img.shields.io/badge/Suporte-apihubsupport%40gmail.com-ea4335.svg?logo=gmail&logoColor=white)](mailto:apihubsupport@gmail.com)
 
 ---
@@ -27,7 +27,7 @@
 ## 💬 Comunidade & Suporte Oficial
 
 - **Suporte Oficial por E-mail:** [apihubsupport@gmail.com](mailto:apihubsupport@gmail.com)
-- **Servidor do Discord:** Comunidade oficial de desenvolvedores, feedback e novidades (link disponível no portal).
+- **Servidor do Discord:** [discord.gg/wBTznxGeWd](https://discord.gg/wBTznxGeWd) — Comunidade oficial de desenvolvedores, feedback e novidades.
 - **Contribuições:** Pull Requests e melhorias da comunidade são bem-vindas conforme as diretrizes do [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---

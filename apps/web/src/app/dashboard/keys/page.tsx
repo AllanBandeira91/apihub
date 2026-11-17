@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Key, Plus, Copy, Check, AlertTriangle, X, Inbox, AlertCircle } from 'lucide-react';
-import { api, ApiKeyItem } from '../../../lib/api';
+import { api, API_BASE_URL, ApiKeyItem } from '../../../lib/api';
 
 export default function KeysPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -227,6 +227,28 @@ export default function KeysPage() {
           </table>
         </div>
       )}
+
+      {/* CI/CD External API Integration Guide */}
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
+        <div>
+          <h2 className="font-bold text-base text-white">Usando suas API Keys no CI/CD (GitHub Actions / Scripts)</h2>
+          <p className="text-xs text-zinc-400 mt-1">
+            Envie sua chave no header <code className="text-blue-400">x-api-key</code> para consultar status de monitores, listar rotas ou disparar sua bateria de testes automaticamente.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-[11px] font-mono">
+          <div className="p-3.5 rounded-lg bg-black/60 border border-[var(--border)] space-y-1.5 overflow-x-auto">
+            <p className="text-zinc-400 font-sans font-semibold text-xs">1. Checar Uptime / Status do Workspace</p>
+            <pre className="text-emerald-300">{`curl -H "x-api-key: ah_live_SUA_CHAVE" \\\n  ${API_BASE_URL}/external/status`}</pre>
+          </div>
+
+          <div className="p-3.5 rounded-lg bg-black/60 border border-[var(--border)] space-y-1.5 overflow-x-auto">
+            <p className="text-zinc-400 font-sans font-semibold text-xs">2. Rodar Bateria de Testes no CI/CD</p>
+            <pre className="text-emerald-300">{`curl -X POST -H "x-api-key: ah_live_SUA_CHAVE" \\\n  ${API_BASE_URL}/external/run-tests`}</pre>
+          </div>
+        </div>
+      </div>
 
       {/* Modal Nova Chave */}
       {isCreateModalOpen && (

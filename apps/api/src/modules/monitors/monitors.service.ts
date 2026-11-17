@@ -5,6 +5,64 @@ import { validateRealEmail } from '../auth/email-validator';
 import { sendUptimeAlertEmail } from '../auth/mailer';
 import { recordAuditLog } from '../../lib/audit';
 
+function validateDiscordWebhookUrl(url?: string | null): string | null {
+  if (!url || !url.trim()) return null;
+  const trimmed = url.trim();
+  const isValid =
+    /^https:\/\/(discord\.com|discordapp\.com|ptb\.discord\.com|canary\.discord\.com)\/api\/webhooks\/\d+\/[a-zA-Z0-9_-]+$/.test(
+      trimmed
+    );
+  if (!isValid) {
+    throw new AppError(
+      'URL de Webhook do Discord inválida. Use o formato https://discord.com/api/webhooks/{id}/{token}',
+      400,
+      'INVALID_DISCORD_WEBHOOK'
+    );
+  }
+  return trimmed;
+}
+
+async function sendDiscordWebhookAlert(
+  webhookUrl: string,
+  params: {
+    monitorName: string;
+    url: string;
+    status: 'UP' | 'DOWN';
+    statusCode: number;
+    latencyMs: number;
+    error?: string | null;
+  }
+) {
+  const isDown = params.status === 'DOWN';
+  const embed = {
+    title: isDown
+      ? `🔴 ALERTA CRÍTICO — ${params.monitorName} está OFFLINE`
+      : `🟢 RECUPERADO — ${params.monitorName} voltou ao normal`,
+    color: isDown ? 0xdc2626 : 0x16a34a,
+    fields: [
+      { name: 'URL Monitorada', value: `\`${params.url}\``, inline: false },
+      { name: 'Status HTTP', value: params.statusCode ? `\`HTTP ${params.statusCode}\`` : '`Sem resposta`', inline: true },
+      { name: 'Latência', value: `\`${params.latencyMs} ms\``, inline: true },
+      ...(params.error ? [{ name: 'Detalhe', value: params.error.slice(0, 500), inline: false }] : []),
+    ],
+    footer: { text: 'CloudAPI Monitoramento 24/7' },
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'CloudAPI Monitor',
+        embeds: [embed],
+      }),
+    });
+  } catch {
+    // Non-fatal
+  }
+}
+
 export class MonitorsService {
   private async ensureProjectAccess(projectId: string, userId: string) {
     const project = await prisma.project.findUnique({
@@ -53,6 +111,7 @@ export class MonitorsService {
       intervalMinutes?: number;
       expectedStatus?: number;
       alertEmail: string;
+      discordWebhookUrl?: string | null;
     }
   ) {
     const project = await this.ensureProjectAccess(projectId, userId);
@@ -63,6 +122,9 @@ export class MonitorsService {
     // 2. Validate real alert email
     const validEmail = await validateRealEmail(input.alertEmail);
 
+    // 3. Validate optional Discord webhook URL
+    const validDiscordWebhook = validateDiscordWebhookUrl(input.discordWebhookUrl);
+
     const monitor = await prisma.uptimeMonitor.create({
       data: {
         projectId,
@@ -72,6 +134,7 @@ export class MonitorsService {
         intervalMinutes: input.intervalMinutes || 5,
         expectedStatus: input.expectedStatus || 200,
         alertEmail: validEmail,
+        discordWebhookUrl: validDiscordWebhook,
         isActive: true,
         lastStatus: 'PENDING',
       },
@@ -172,6 +235,17 @@ export class MonitorsService {
         latencyMs,
         error: errorMsg,
       });
+
+      if (monitor.discordWebhookUrl) {
+        await sendDiscordWebhookAlert(monitor.discordWebhookUrl, {
+          monitorName: monitor.name,
+          url: monitor.url,
+          status: newStatus,
+          statusCode,
+          latencyMs,
+          error: errorMsg,
+        });
+      }
     }
 
     return {
@@ -229,6 +303,81 @@ export class MonitorsService {
     });
 
     return { message: 'Monitor removido com sucesso.' };
+  }
+
+  async getPublicStatusByWorkspaceSlug(workspaceSlug: string) {
+    const workspace = await prisma.workspace.findUnique({
+      where: { slug: workspaceSlug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+      },
+    });
+
+    if (!workspace) {
+      throw new AppError('Página de status não encontrada.', 404, 'NOT_FOUND');
+    }
+
+    const monitors = await prisma.uptimeMonitor.findMany({
+      where: {
+        project: { workspaceId: workspace.id },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        method: true,
+        intervalMinutes: true,
+        lastStatus: true,
+        lastStatusCode: true,
+        lastLatencyMs: true,
+        lastCheckedAt: true,
+        totalChecks: true,
+        upChecks: true,
+        checks: {
+          orderBy: { checkedAt: 'desc' },
+          take: 24,
+          select: {
+            id: true,
+            status: true,
+            statusCode: true,
+            latencyMs: true,
+            checkedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const formatted = monitors.map(m => ({
+      ...m,
+      uptimePercent: m.totalChecks > 0 ? Number(((m.upChecks / m.totalChecks) * 100).toFixed(2)) : 100,
+    }));
+
+    const downCount = formatted.filter(m => m.lastStatus === 'DOWN').length;
+    const overallStatus =
+      formatted.length === 0
+        ? 'OPERATIONAL'
+        : downCount === formatted.length
+        ? 'OUTAGE'
+        : downCount > 0
+        ? 'DEGRADED'
+        : 'OPERATIONAL';
+
+    const avgUptime =
+      formatted.length > 0
+        ? Number((formatted.reduce((acc, m) => acc + m.uptimePercent, 0) / formatted.length).toFixed(2))
+        : 100;
+
+    return {
+      workspace,
+      overallStatus,
+      avgUptime,
+      updatedAt: new Date().toISOString(),
+      monitors: formatted,
+    };
   }
 
   async runDueMonitors() {

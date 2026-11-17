@@ -19,12 +19,14 @@ import {
   Check,
   ExternalLink
 } from 'lucide-react';
-import { api, EndpointItem, ApiSummaryItem } from '../../../lib/api';
+import { api, API_BASE_URL, EndpointItem, ApiSummaryItem } from '../../../lib/api';
 
 export type { EndpointItem };
 
 export default function ApisPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [workspaceSlug, setWorkspaceSlug] = useState<string | null>(null);
+  const [copiedMockId, setCopiedMockId] = useState<string | null>(null);
   const [apis, setApis] = useState<ApiSummaryItem[]>([]);
   const [endpoints, setEndpoints] = useState<EndpointItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +73,7 @@ export default function ApisPage() {
     try {
       const boot = await api.workspaces.bootstrap();
       setProjectId(boot.project.id);
+      setWorkspaceSlug(boot.workspace.slug);
       const [epList, apiList] = await Promise.all([
         api.endpoints.list(boot.project.id),
         api.apis.listByProject(boot.project.id),
@@ -361,11 +364,10 @@ export default function ApisPage() {
                   <button
                     type="button"
                     onClick={() => handleTogglePublic(a)}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 border transition ${
-                      a.isPublic
-                        ? 'bg-emerald-600/20 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/30'
-                        : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'
-                    }`}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1 border transition ${a.isPublic
+                      ? 'bg-emerald-600/20 border-emerald-600/40 text-emerald-300 hover:bg-emerald-600/30'
+                      : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'
+                      }`}
                   >
                     {a.isPublic ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                     {a.isPublic ? 'Pública' : 'Publicar'}
@@ -395,11 +397,10 @@ export default function ApisPage() {
             <button
               key={method}
               onClick={() => setSelectedMethod(method)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition border ${
-                selectedMethod === method
-                  ? 'bg-blue-600 text-white border-blue-500'
-                  : 'bg-[var(--card)] border-[var(--border)] text-zinc-400 hover:text-white'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition border ${selectedMethod === method
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-[var(--card)] border-[var(--border)] text-zinc-400 hover:text-white'
+                }`}
             >
               {method}
             </button>
@@ -436,15 +437,14 @@ export default function ApisPage() {
             >
               <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <span
-                  className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs flex-shrink-0 ${
-                    ep.method === 'GET'
-                      ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                      : ep.method === 'POST'
+                  className={`font-mono font-bold px-2.5 py-1 rounded-md text-xs flex-shrink-0 ${ep.method === 'GET'
+                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                    : ep.method === 'POST'
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                       : ep.method === 'PUT' || ep.method === 'PATCH'
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                  }`}
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                    }`}
                 >
                   {ep.method}
                 </span>
@@ -465,7 +465,28 @@ export default function ApisPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+              <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0 flex-wrap">
+                {workspaceSlug && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mockUrl = `${API_BASE_URL}/mock/${workspaceSlug}${ep.path}`;
+                      navigator.clipboard.writeText(mockUrl);
+                      setCopiedMockId(ep.id);
+                      setTimeout(() => setCopiedMockId(null), 2000);
+                    }}
+                    title="Copiar URL do Mock Server Instantâneo"
+                    className="px-2.5 py-1.5 rounded-lg border border-purple-800/70 bg-purple-950/30 hover:bg-purple-950/60 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    {copiedMockId === ep.id ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    {copiedMockId === ep.id ? 'Mock Copiado!' : 'Mock URL'}
+                  </button>
+                )}
+
                 <button
                   onClick={() => openEditModal(ep)}
                   title="Editar endpoint, parâmetros e respostas"

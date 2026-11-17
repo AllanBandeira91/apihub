@@ -7,6 +7,7 @@ async function clean() {
   await prisma.emailVerification.deleteMany({});
   await prisma.uptimeCheck.deleteMany({});
   await prisma.uptimeMonitor.deleteMany({});
+  await prisma.testCase.deleteMany({});
   await prisma.environment.deleteMany({});
   await prisma.auditLog.deleteMany({});
   await prisma.requestLog.deleteMany({});

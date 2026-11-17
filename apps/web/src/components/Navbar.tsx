@@ -37,7 +37,7 @@ export function Navbar() {
             <BookOpen className="w-4 h-4" /> OpenAPI
           </a>
           <a
-            href="https://discord.gg/apihub"
+            href="https://discord.gg/wBTznxGeWd"
             target="_blank"
             rel="noreferrer"
             className="hover:text-[#5865F2] transition flex items-center gap-1.5 text-zinc-300 font-semibold"

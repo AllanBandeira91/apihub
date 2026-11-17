@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Activity,
   Plus,
@@ -14,12 +15,18 @@ import {
   XCircle,
   AlertCircle,
   Inbox,
-  X
+  X,
+  Globe,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { api, UptimeMonitorItem, getStoredUser } from '../../../lib/api';
 
 export default function MonitorsPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [workspaceSlug, setWorkspaceSlug] = useState<string | null>(null);
+  const [copiedStatusLink, setCopiedStatusLink] = useState(false);
   const [monitors, setMonitors] = useState<UptimeMonitorItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingId, setCheckingId] = useState<string | null>(null);
@@ -32,6 +39,7 @@ export default function MonitorsPage() {
   const [intervalMinutes, setIntervalMinutes] = useState(5);
   const [expectedStatus, setExpectedStatus] = useState(200);
   const [alertEmail, setAlertEmail] = useState('');
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -44,6 +52,7 @@ export default function MonitorsPage() {
       .bootstrap()
       .then(async boot => {
         setProjectId(boot.project.id);
+        setWorkspaceSlug(boot.workspace.slug);
         const list = await api.monitors.list(boot.project.id);
         setMonitors(list);
       })
@@ -65,17 +74,26 @@ export default function MonitorsPage() {
         intervalMinutes,
         expectedStatus,
         alertEmail: alertEmail.trim(),
+        discordWebhookUrl: discordWebhookUrl.trim() || null,
       });
       setMonitors(prev => [created, ...prev]);
       setIsModalOpen(false);
       setName('');
       setUrl('');
+      setDiscordWebhookUrl('');
       setSuccess(`Monitor "${created.name}" criado e primeira checagem executada!`);
     } catch (err: any) {
       setError(err?.message || 'Erro ao criar monitor.');
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleCopyStatusUrl = () => {
+    if (!workspaceSlug) return;
+    navigator.clipboard.writeText(`${window.location.origin}/status/${workspaceSlug}`);
+    setCopiedStatusLink(true);
+    setTimeout(() => setCopiedStatusLink(false), 2000);
   };
 
   const handleCheckNow = async (id: string) => {
@@ -119,12 +137,36 @@ export default function MonitorsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
-        >
-          <Plus className="w-4 h-4" /> Novo Monitor
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {workspaceSlug && (
+            <>
+              <button
+                onClick={handleCopyStatusUrl}
+                className="border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-zinc-200 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                {copiedStatusLink ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                )}
+                {copiedStatusLink ? 'Link Copiado!' : 'Link StatusPage'}
+              </button>
+              <Link
+                href={`/status/${workspaceSlug}`}
+                target="_blank"
+                className="border border-emerald-800 bg-emerald-950/30 hover:bg-emerald-950/60 text-emerald-300 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <Globe className="w-3.5 h-3.5" /> Ver Status Público <ExternalLink className="w-3 h-3" />
+              </Link>
+            </>
+          )}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
+          >
+            <Plus className="w-4 h-4" /> Novo Monitor
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -217,6 +259,11 @@ export default function MonitorsPage() {
                       <span className="flex items-center gap-1">
                         <Mail className="w-3 h-3" /> Alertas: {m.alertEmail}
                       </span>
+                      {m.discordWebhookUrl && (
+                        <span className="px-2 py-0.5 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-800 font-semibold text-[10px]">
+                          Discord Webhook Ativo
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -359,6 +406,19 @@ export default function MonitorsPage() {
                   onChange={e => setAlertEmail(e.target.value)}
                   placeholder="seu.email@gmail.com"
                   className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-300">
+                  Webhook do Discord para Alertas em Tempo Real (Opcional)
+                </label>
+                <input
+                  type="url"
+                  value={discordWebhookUrl}
+                  onChange={e => setDiscordWebhookUrl(e.target.value)}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  className="w-full bg-black/40 border border-[var(--border)] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-500"
                 />
               </div>
 

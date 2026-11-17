@@ -84,7 +84,7 @@ export default function TermosPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-bold text-white">7. Contato, Suporte e Comunidade</h2>
             <p>
-              Para dúvidas sobre estes Termos de Uso, colaborações ou reporte de vulnerabilidades de segurança, entre em contato através do e-mail oficial: <a href="mailto:apihubsupport@gmail.com" className="text-blue-400 underline">apihubsupport@gmail.com</a> ou junte-se à nossa comunidade no <a href="https://discord.gg/apihub" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline">Discord Oficial</a>.
+              Para dúvidas sobre estes Termos de Uso, colaborações ou reporte de vulnerabilidades de segurança, entre em contato através do e-mail oficial: <a href="mailto:apihubsupport@gmail.com" className="text-blue-400 underline">apihubsupport@gmail.com</a> ou junte-se à nossa comunidade no <a href="https://discord.gg/wBTznxGeWd" target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline">Discord Oficial</a>.
             </p>
           </section>
         </div>

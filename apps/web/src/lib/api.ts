@@ -1,6 +1,6 @@
 // API Client for CloudAPI Frontend (100% Real Backend + Supabase)
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333/api/v1';
 
 export interface StoredUser {
   id: string;
@@ -137,6 +137,7 @@ export interface UptimeMonitorItem {
   intervalMinutes: number;
   expectedStatus: number;
   alertEmail: string;
+  discordWebhookUrl?: string | null;
   isActive: boolean;
   lastStatus: 'PENDING' | 'UP' | 'DOWN';
   lastStatusCode?: number | null;
@@ -168,6 +169,38 @@ export interface MetricsData {
   avgDurationMs: number;
   statusDistribution: { statusCode: number; count: number }[];
   recentLatencySeries: { timestamp: string; durationMs: number; status: number }[];
+}
+
+export interface TestCaseItem {
+  id: string;
+  projectId: string;
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  url: string;
+  headers: Record<string, string>;
+  body?: string | null;
+  expectedStatus: number;
+  maxLatencyMs?: number | null;
+  bodyContains?: string | null;
+  lastPassed?: boolean | null;
+  lastStatusCode?: number | null;
+  lastLatencyMs?: number | null;
+  lastError?: string | null;
+  lastRunAt?: string | null;
+}
+
+export interface AssertionResultItem {
+  rule: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface TestExecutionResult {
+  testCase: TestCaseItem;
+  passed: boolean;
+  statusCode: number;
+  latencyMs: number;
+  assertions: AssertionResultItem[];
 }
 
 export function interpolateVariables(text: string, variables: EnvVariableItem[]): string {
@@ -524,6 +557,7 @@ export const api = {
         intervalMinutes?: number;
         expectedStatus?: number;
         alertEmail: string;
+        discordWebhookUrl?: string | null;
       }
     ) {
       const res = await request<{ monitor: UptimeMonitorItem }>(`/projects/${projectId}/monitors`, {
@@ -531,6 +565,15 @@ export const api = {
         body: JSON.stringify(data),
       });
       return res.monitor;
+    },
+    async getPublicStatus(workspaceSlug: string) {
+      return request<{
+        workspace: { id: string; name: string; slug: string; description?: string | null };
+        overallStatus: 'OPERATIONAL' | 'DEGRADED' | 'OUTAGE';
+        avgUptime: number;
+        updatedAt: string;
+        monitors: UptimeMonitorItem[];
+      }>(`/public/status/${encodeURIComponent(workspaceSlug)}`, { method: 'GET' }, true);
     },
     async checkNow(monitorId: string) {
       const res = await request<{ monitor: UptimeMonitorItem }>(`/monitors/${monitorId}/check`, {
@@ -611,6 +654,49 @@ export const api = {
         method: 'GET',
       });
       return res.metrics;
+    },
+  },
+
+  runner: {
+    async list(projectId: string) {
+      const res = await request<{ testCases: TestCaseItem[] }>(`/projects/${projectId}/test-cases`, {
+        method: 'GET',
+      });
+      return res.testCases;
+    },
+    async create(
+      projectId: string,
+      data: {
+        name: string;
+        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        url: string;
+        headers?: Record<string, string>;
+        body?: string | null;
+        expectedStatus?: number;
+        maxLatencyMs?: number | null;
+        bodyContains?: string | null;
+      }
+    ) {
+      const res = await request<{ testCase: TestCaseItem }>(`/projects/${projectId}/test-cases`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return res.testCase;
+    },
+    async delete(testCaseId: string) {
+      return request<{ message: string }>(`/test-cases/${testCaseId}`, { method: 'DELETE' });
+    },
+    async runOne(testCaseId: string) {
+      return request<TestExecutionResult>(`/test-cases/${testCaseId}/run`, { method: 'POST' });
+    },
+    async runAll(projectId: string) {
+      return request<{
+        total: number;
+        passed: number;
+        failed: number;
+        allPassed: boolean;
+        results: TestExecutionResult[];
+      }>(`/projects/${projectId}/test-cases/run-all`, { method: 'POST' });
     },
   },
 };
