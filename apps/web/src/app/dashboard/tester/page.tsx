@@ -308,7 +308,7 @@ export default function TesterPage() {
             {activeTab === 'params' && (
               <div className="space-y-2">
                 {headers.map((h, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <input
                       type="text"
                       value={h.key}
@@ -325,7 +325,8 @@ export default function TesterPage() {
                     />
                     <button
                       onClick={() => handleRemoveHeader(idx)}
-                      className="p-1.5 text-zinc-500 hover:text-red-400 transition"
+                      className="self-end sm:self-center p-1.5 text-zinc-500 hover:text-red-400 transition"
+                      title="Remover Header"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -386,7 +387,7 @@ export default function TesterPage() {
           {/* Response Viewer */}
           {response && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[var(--border)] pb-3 text-xs">
                 <div className="flex items-center gap-3">
                   <span
                     className={`font-mono font-bold px-2.5 py-0.5 rounded border ${
@@ -406,7 +407,7 @@ export default function TesterPage() {
 
                 <button
                   onClick={handleCopyResponse}
-                  className="px-2.5 py-1 rounded border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 flex items-center gap-1.5 transition"
+                  className="px-2.5 py-1 rounded border border-[var(--border)] bg-black/40 hover:bg-zinc-800 text-zinc-300 flex items-center gap-1.5 transition self-start sm:self-auto"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   {copied ? 'Copiado!' : 'Copiar Resposta'}

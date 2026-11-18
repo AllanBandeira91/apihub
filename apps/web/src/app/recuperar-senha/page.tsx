@@ -70,7 +70,7 @@ export default function RecuperarSenhaPage() {
         <ThemeToggle />
       </div>
 
-      <div className="max-w-md w-full mx-auto my-auto p-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl space-y-6">
+      <div className="max-w-md w-full mx-auto my-auto p-5 sm:p-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl space-y-6">
         <div className="text-center space-y-2">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xl mx-auto shadow-md">
             λ

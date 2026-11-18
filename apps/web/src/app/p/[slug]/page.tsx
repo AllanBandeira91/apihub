@@ -56,24 +56,24 @@ export default function PublicDocsPortalPage() {
     <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
       {/* Top Public Bar */}
       <header className="h-16 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-2 sm:gap-4">
+          <Link href="/" className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
               λ
             </div>
-            <span className="font-bold text-base tracking-tight">CloudAPI Docs</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800 font-semibold flex items-center gap-1">
+            <span className="font-bold text-sm sm:text-base tracking-tight truncate">CloudAPI Docs</span>
+            <span className="hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800 font-semibold items-center gap-1 flex-shrink-0">
               <Globe className="w-3 h-3" /> Público
             </span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <ThemeToggle />
             <Link
               href="/register"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold transition"
             >
-              Criar sua API no CloudAPI
+              Criar sua API
             </Link>
           </div>
         </div>

@@ -301,26 +301,39 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         {/* Top Navbar */}
-        <header className="h-16 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="h-16 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-md px-3 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-40">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg border border-[var(--border)] flex-shrink-0"
+              className="md:hidden p-2 rounded-lg border border-[var(--border)] flex-shrink-0 text-zinc-300 hover:text-white"
+              aria-label="Abrir menu lateral"
             >
               {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
-            <div className="flex items-center gap-2 text-sm min-w-0 overflow-hidden">
-              <span className="text-zinc-500 flex-shrink-0">Workspace</span>
-              <span className="text-zinc-600 flex-shrink-0">/</span>
-              <span className="font-semibold truncate max-w-[180px] sm:max-w-xs" title={currentWorkspaceName}>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0 overflow-hidden">
+              <span className="text-zinc-500 flex-shrink-0 hidden sm:inline">Workspace</span>
+              <span className="text-zinc-600 flex-shrink-0 hidden sm:inline">/</span>
+              <span className="font-semibold truncate max-w-[140px] sm:max-w-xs" title={currentWorkspaceName}>
                 {currentWorkspaceName}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            {/* Mobile search trigger */}
+            <button
+              type="button"
+              onClick={() => setIsCmdOpen(true)}
+              className="sm:hidden p-2 rounded-lg border border-[var(--border)] bg-black/20 text-zinc-400 hover:text-white"
+              title="Buscar (Ctrl+K)"
+              aria-label="Buscar"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Desktop search trigger */}
             <button
               type="button"
               onClick={() => setIsCmdOpen(true)}
@@ -344,38 +357,113 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Mobile Navigation Drawer */}
+        {/* Mobile Navigation Drawer with Workspace Switcher */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-b border-[var(--border)] bg-[var(--card)] p-4 space-y-2">
-            {navItems.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-zinc-300 hover:bg-black/30"
+          <div className="md:hidden border-b border-[var(--border)] bg-[var(--card)] p-4 space-y-4 max-h-[85vh] overflow-y-auto">
+            {/* Mobile Workspace Selector */}
+            <div className="p-3 rounded-xl border border-[var(--border)] bg-black/30 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Workspace Atual</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800 font-mono">
+                  {activeWorkspace?.userRole || 'OWNER'}
+                </span>
+              </div>
+              <p className="font-bold text-sm text-zinc-100 truncate">{currentWorkspaceName}</p>
+
+              {workspaces.length > 1 && (
+                <div className="pt-2 border-t border-[var(--border)] space-y-1">
+                  <p className="text-[10px] text-zinc-400 font-medium">Trocar de Workspace:</p>
+                  <div className="max-h-36 overflow-y-auto space-y-1">
+                    {workspaces.map(ws => {
+                      const isSelected = ws.id === activeWorkspace?.id;
+                      return (
+                        <button
+                          key={ws.id}
+                          type="button"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            handleSelectWorkspace(ws);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition text-left ${
+                            isSelected
+                              ? 'bg-blue-600/20 text-blue-300 font-semibold'
+                              : 'text-zinc-300 hover:bg-zinc-900'
+                          }`}
+                        >
+                          <span className="truncate">{ws.name}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsNewWsModalOpen(true);
+                }}
+                className="w-full mt-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold text-emerald-400 border border-emerald-900/60 bg-emerald-950/30 hover:bg-emerald-950/60 transition"
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </Link>
-            ))}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-950/20"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sair da Conta</span>
-            </button>
+                <Plus className="w-3.5 h-3.5" /> Criar Novo Workspace
+              </button>
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="space-y-1">
+              {navItems.map(item => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                        : 'text-zinc-300 hover:bg-black/30'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* User Profile & Logout */}
+            <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-[var(--border)]">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-xs text-zinc-300 flex-shrink-0">
+                  {userInitial}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-zinc-200 truncate">{user?.name || 'Desenvolvedor'}</p>
+                  <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-950/20 transition flex-shrink-0"
+                title="Sair da Conta"
+                aria-label="Sair da Conta"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className="flex-1 p-3 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8 min-w-0 overflow-x-hidden">
           {children}
         </main>
 
-        <footer className="border-t border-[var(--border)] px-4 sm:px-8 py-4 text-[11px] text-zinc-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <footer className="border-t border-[var(--border)] px-4 sm:px-8 py-4 text-[11px] text-zinc-500 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <span>CloudAPI • Conformidade com a Lei Geral de Proteção de Dados (LGPD)</span>
-          <div className="flex items-center gap-4 text-zinc-400">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-zinc-400">
             <Link href="/privacidade" className="hover:underline">Privacidade</Link>
             <Link href="/termos" className="hover:underline">Termos</Link>
             <Link href="/canal-titular" className="text-emerald-400 hover:underline">Canal DPO</Link>
@@ -387,8 +475,8 @@ export default function DashboardLayout({
 
       {/* Create Workspace Modal */}
       {isNewWsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-md w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="font-bold text-base flex items-center gap-2">
                 <Plus className="w-4 h-4 text-emerald-400" /> Criar Novo Workspace

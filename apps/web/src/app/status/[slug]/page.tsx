@@ -53,22 +53,22 @@ export default function PublicStatusPage() {
     <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
       {/* Header */}
       <header className="h-16 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between gap-3">
+          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
               λ
             </div>
-            <span className="font-bold text-base tracking-tight">CloudAPI Status</span>
+            <span className="font-bold text-sm sm:text-base tracking-tight truncate">CloudAPI Status</span>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button
               onClick={() => fetchStatus(true)}
               disabled={refreshing}
-              className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1.5 transition"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1.5 transition"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              Atualizar
+              <span>Atualizar</span>
             </button>
             <ThemeToggle />
           </div>

@@ -174,14 +174,14 @@ export default function BenchmarkPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-[var(--border)]">
           <p className="text-[11px] text-zinc-500">
             Limite de segurança: até 30 requisições, concorrência máxima 5, timeout 8s e rate limit de 6 execuções/min.
           </p>
           <button
             type="submit"
             disabled={running || !projectId}
-            className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-md shadow-amber-600/20"
+            className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition shadow-md shadow-amber-600/20 self-stretch sm:self-auto"
           >
             <Play className="w-3.5 h-3.5" />
             {running ? 'Executando Benchmark...' : 'Iniciar Benchmark'}
@@ -193,7 +193,7 @@ export default function BenchmarkPage() {
       {result && (
         <div className="space-y-5">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
               <p className="text-[11px] text-zinc-400 flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5 text-amber-400" /> Vazão (RPS)

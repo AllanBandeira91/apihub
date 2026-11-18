@@ -475,10 +475,10 @@ export default function MonitorsPage() {
 
       {/* Create Incident Modal */}
       {isIncidentModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h3 className="font-bold text-lg flex items-center gap-2">
+              <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                 {incType === 'MAINTENANCE' ? (
                   <Wrench className="w-5 h-5 text-blue-400" />
                 ) : (
@@ -486,13 +486,13 @@ export default function MonitorsPage() {
                 )}
                 Publicar Comunicado na StatusPage
               </h3>
-              <button onClick={() => setIsIncidentModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setIsIncidentModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateIncident} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-zinc-300">Tipo</label>
                   <select
@@ -570,13 +570,13 @@ export default function MonitorsPage() {
 
       {/* Create Monitor Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h3 className="font-bold text-lg flex items-center gap-2">
+              <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                 <Activity className="w-5 h-5 text-blue-400" /> Novo Monitor de Uptime
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -606,7 +606,7 @@ export default function MonitorsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-zinc-300">Método</label>
                   <select

@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs min-w-[620px]">
                   <thead className="bg-black/30 border-b border-[var(--border)] text-zinc-400 uppercase font-semibold">
                     <tr>
                       <th className="p-3.5">Ação</th>

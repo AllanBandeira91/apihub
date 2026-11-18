@@ -85,7 +85,7 @@ export function DashboardPreview() {
             Teste requisições com proteção anti-SSRF ativa, medição real de latência e exportação OpenAPI.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/40 border border-emerald-800 px-2.5 py-1 rounded-md">
             <CheckCircle2 className="w-3.5 h-3.5" /> Anti-SSRF Ativo
           </span>

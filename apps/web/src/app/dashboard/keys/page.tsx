@@ -127,7 +127,7 @@ export default function KeysPage() {
           <p className="text-xs text-zinc-300 leading-relaxed">
             Por razões de segurança estrita, este segredo completo <strong>nunca mais será exibido</strong>. Apenas o hash criptográfico SHA-256 foi salvo no Supabase.
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input
               type="text"
               readOnly
@@ -136,7 +136,7 @@ export default function KeysPage() {
             />
             <button
               onClick={handleCopySecret}
-              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-black font-bold text-xs flex items-center gap-1.5 transition flex-shrink-0"
+              className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition flex-shrink-0"
             >
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied ? 'Copiado!' : 'Copiar'}
@@ -171,7 +171,7 @@ export default function KeysPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-x-auto shadow-xl">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs min-w-[620px]">
             <thead className="bg-black/30 border-b border-[var(--border)] text-zinc-400 uppercase tracking-wider font-semibold">
               <tr>
                 <th className="p-4">Identificação / Nome</th>
@@ -252,10 +252,10 @@ export default function KeysPage() {
 
       {/* Modal Nova Chave */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-md w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h3 className="font-bold text-lg flex items-center gap-2">
+              <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                 <Key className="w-5 h-5 text-blue-400" /> Nova API Key
               </h3>
               <button

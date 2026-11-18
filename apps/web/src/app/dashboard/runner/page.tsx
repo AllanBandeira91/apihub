@@ -312,13 +312,13 @@ export default function TestRunnerPage() {
 
       {/* Create Test Case Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-lg w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-              <h3 className="font-bold text-lg flex items-center gap-2">
+              <h3 className="font-bold text-base sm:text-lg flex items-center gap-2">
                 <FlaskConical className="w-5 h-5 text-blue-400" /> Novo Caso de Teste
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>

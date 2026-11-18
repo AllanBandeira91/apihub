@@ -180,7 +180,7 @@ export default function DocsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-lg border border-[var(--border)] p-1 bg-black/40">
             <button
               onClick={() => setViewMode('ui')}
@@ -331,7 +331,7 @@ export default function DocsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {ep.parameters.map(p => (
                             <div key={p.id} className="p-2.5 rounded-lg bg-black/40 border border-[var(--border)]">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-mono font-bold text-blue-300">{p.name}</span>
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase">
                                   {p.in}

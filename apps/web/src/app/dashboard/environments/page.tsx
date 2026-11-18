@@ -273,20 +273,20 @@ export default function EnvironmentsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <div className="grid grid-cols-12 gap-2 text-[11px] font-semibold text-zinc-400 px-1">
+                <div className="hidden sm:grid grid-cols-12 gap-2 text-[11px] font-semibold text-zinc-400 px-1">
                   <span className="col-span-4">Nome da Variável</span>
                   <span className="col-span-6">Valor</span>
                   <span className="col-span-2 text-right">Ações</span>
                 </div>
 
                 {variables.map((v, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                  <div key={idx} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 p-3 sm:p-0 rounded-xl sm:rounded-none bg-black/20 sm:bg-transparent border sm:border-0 border-[var(--border)] items-stretch sm:items-center">
                     <input
                       type="text"
                       value={v.key}
                       onChange={e => handleVarChange(idx, 'key', e.target.value)}
                       placeholder="BASE_URL"
-                      className="col-span-4 bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono text-blue-300 focus:outline-none focus:border-blue-500"
+                      className="w-full sm:col-span-4 bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono text-blue-300 focus:outline-none focus:border-blue-500"
                     />
 
                     <input
@@ -294,10 +294,10 @@ export default function EnvironmentsPage() {
                       value={v.value}
                       onChange={e => handleVarChange(idx, 'value', e.target.value)}
                       placeholder="https://api.seusistema.com"
-                      className="col-span-6 bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
+                      className="w-full sm:col-span-6 bg-black/40 border border-[var(--border)] rounded-lg px-2.5 py-2 text-xs font-mono focus:outline-none focus:border-blue-500"
                     />
 
-                    <div className="col-span-2 flex items-center justify-end gap-1">
+                    <div className="sm:col-span-2 flex items-center justify-end gap-1 pt-1 sm:pt-0">
                       <button
                         type="button"
                         onClick={() => handleVarChange(idx, 'isSecret', !v.isSecret)}

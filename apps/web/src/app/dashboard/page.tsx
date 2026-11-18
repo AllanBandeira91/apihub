@@ -82,16 +82,16 @@ export default function DashboardHomePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href="/dashboard/apis"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-md shadow-blue-600/20"
           >
             <Plus className="w-4 h-4" /> Novo Endpoint
           </Link>
           <Link
             href="/dashboard/tester"
-            className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+            className="border border-[var(--border)] bg-[var(--card)] hover:opacity-80 px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2"
           >
             <Terminal className="w-4 h-4" /> Abrir Tester
           </Link>

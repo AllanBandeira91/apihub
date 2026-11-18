@@ -226,7 +226,7 @@ export default function WebhooksPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left list */}
-          <div className="lg:col-span-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden flex flex-col max-h-[650px]">
+          <div className="lg:col-span-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden flex flex-col max-h-[360px] lg:max-h-[650px]">
             <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between text-xs font-semibold text-zinc-400">
               <span>Requisições Recebidas ({captures.length})</span>
               {autoRefresh && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}

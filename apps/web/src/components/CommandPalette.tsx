@@ -173,15 +173,15 @@ export function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-start justify-center pt-[12vh] px-4"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-start justify-center pt-6 sm:pt-[12vh] p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-w-xl w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl overflow-hidden"
+        className="max-w-xl w-full max-h-[88vh] flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border)]">
+        <div className="flex items-center gap-3 px-3.5 sm:px-4 py-3 sm:py-3.5 border-b border-[var(--border)] flex-shrink-0">
           <Search className="w-4 h-4 text-zinc-400 flex-shrink-0" />
           <input
             ref={inputRef}
@@ -192,19 +192,19 @@ export function CommandPalette({
               setSelectedIndex(0);
             }}
             placeholder="Buscar páginas, endpoints, monitores..."
-            className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-zinc-500 focus:outline-none"
+            className="flex-1 bg-transparent text-xs sm:text-sm text-[var(--foreground)] placeholder:text-zinc-500 focus:outline-none min-w-0"
           />
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition"
+            className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition flex-shrink-0"
             aria-label="Fechar busca"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="max-h-80 overflow-y-auto p-2 space-y-0.5">
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5 max-h-[60vh]">
           {filtered.length === 0 ? (
             <div className="py-10 text-center text-xs text-zinc-500">
               Nenhum resultado encontrado para &ldquo;{query}&rdquo;.
@@ -222,22 +222,22 @@ export function CommandPalette({
                     isSelected ? 'bg-blue-600/20 text-white' : 'text-zinc-300 hover:bg-black/25'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
                     {getIcon(item)}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
                         {item.badge && (
-                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-blue-300 border border-zinc-700">
+                          <span className="font-mono text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-blue-300 border border-zinc-700 flex-shrink-0">
                             {item.badge}
                           </span>
                         )}
                         <span className="text-xs font-semibold truncate">{item.label}</span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 truncate">{item.subtitle}</p>
+                      <p className="text-[10px] sm:text-[11px] text-zinc-500 truncate">{item.subtitle}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[10px] text-zinc-500">{item.category}</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    <span className="text-[9px] sm:text-[10px] text-zinc-500 hidden sm:inline">{item.category}</span>
                     {isSelected && <ArrowRight className="w-3.5 h-3.5 text-blue-400" />}
                   </div>
                 </button>
@@ -246,13 +246,13 @@ export function CommandPalette({
           )}
         </div>
 
-        <div className="px-4 py-2.5 border-t border-[var(--border)] bg-black/20 flex items-center justify-between text-[10px] text-zinc-500">
-          <div className="flex items-center gap-3">
+        <div className="px-3 sm:px-4 py-2 border-t border-[var(--border)] bg-black/20 flex items-center justify-between text-[10px] text-zinc-500 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span>↑↓ Navegar</span>
             <span>↵ Abrir</span>
             <span>ESC Fechar</span>
           </div>
-          <span>CloudAPI Command Palette</span>
+          <span className="hidden sm:inline">CloudAPI Command Palette</span>
         </div>
       </div>
     </div>
