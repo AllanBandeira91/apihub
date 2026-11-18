@@ -69,7 +69,7 @@ describe('CloudAPI Pre-Launch Security Audit', () => {
       const resInvalid = await app.inject({
         method: 'GET',
         url: '/api/v1/external/status',
-        headers: { 'x-api-key': 'ak_invalid_key_attempt_123456' },
+        headers: { 'x-api-key': 'invalid_key_format_attempt' },
       });
       expect(resInvalid.statusCode).toBe(401);
     });

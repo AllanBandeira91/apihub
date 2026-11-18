@@ -29,7 +29,12 @@ async function authenticateApiKey(request: ApiKeyRequest) {
     );
   }
 
-  const keyHash = crypto.createHash('sha256').update(rawKey.trim()).digest('hex');
+  const trimmedKey = rawKey.trim();
+  if (!/^ah_live_[a-f0-9]{48}$/.test(trimmedKey)) {
+    throw new AppError('API Key inválida ou malformada.', 401, 'INVALID_API_KEY');
+  }
+
+  const keyHash = crypto.createHash('sha256').update(trimmedKey).digest('hex');
 
   const keyRecord = await prisma.apiKey.findFirst({
     where: {
