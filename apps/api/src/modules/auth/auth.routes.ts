@@ -47,7 +47,7 @@ export async function authRoutes(app: FastifyInstance) {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       });
 
       return reply.status(201).send({
@@ -87,7 +87,7 @@ export async function authRoutes(app: FastifyInstance) {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       });
 
       return reply.status(201).send({
@@ -113,7 +113,7 @@ export async function authRoutes(app: FastifyInstance) {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       });
 
       return reply.send({
@@ -127,7 +127,12 @@ export async function authRoutes(app: FastifyInstance) {
   );
 
   app.post('/logout', async (request, reply) => {
-    reply.clearCookie('token', { path: '/' });
+    reply.clearCookie('token', {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
     return reply.send({
       success: true,
       data: { message: 'Logged out successfully' },
